@@ -4,6 +4,7 @@ Please choose one of the following targets:
   - reset
   - llvm-3.9.1
   - llvm-14.0.6
+  - saw-0.9
 endef
 export cmdline
 
@@ -28,10 +29,10 @@ reset:
 	@cd llvm && git checkout main
 
 llvm-3.9.1:
-	@echo "Checking out LLVM 3.9.1"
+	@echo "Checking out the soure code"
 	@cd llvm && git checkout llvmorg-3.9.1
 	###
-	@echo "Configuring the LLVM build"
+	@echo "Configuring"
 	@mkdir -p $(OBJECT_DIR)/$@
 	@cd $(OBJECT_DIR)/$@ && \
 		cmake \
@@ -42,17 +43,17 @@ llvm-3.9.1:
 			-DCMAKE_INSTALL_PREFIX=$(TARGET_DIR)/$@ \
 			$(CURRENT_DIR)/llvm/llvm
 	###
-	@echo "Building LLVM"
+	@echo "Building"
 	@cmake --build $(OBJECT_DIR)/$@
 	###
-	@echo "Installing LLVM"
+	@echo "Installing"
 	@cmake --install $(OBJECT_DIR)/$@
 
 llvm-14.0.6:
-	@echo "Checking out LLVM 14.0.6"
+	@echo "Checking out the source code"
 	@cd llvm && git checkout llvmorg-14.0.6
 	###
-	@echo "Configuring the LLVM build"
+	@echo "Configuring"
 	@mkdir -p $(OBJECT_DIR)/$@
 	@cd $(OBJECT_DIR)/$@ && \
 		cmake \
@@ -63,8 +64,18 @@ llvm-14.0.6:
 			-DCMAKE_INSTALL_PREFIX=$(TARGET_DIR)/$@ \
 			$(CURRENT_DIR)/llvm/llvm
 	###
-	@echo "Building LLVM"
+	@echo "Building"
 	@cmake --build $(OBJECT_DIR)/$@
 	###
-	@echo "Installing LLVM"
+	@echo "Installing"
 	@cmake --install $(OBJECT_DIR)/$@
+
+saw-0.9:
+	@echo "Downloading binaries"
+	@wget https://github.com/GaloisInc/saw-script/releases/download/v0.9/saw-0.9-Linux-x86_64-with-solvers.tar.gz \
+		-O $(TARGET_DIR)/saw.tar.gz
+	@echo "Unpacking binaries"
+	@cd $(TARGET_DIR) && \
+		tar xvf saw.tar.gz && \
+		mv saw-0.9-Linux-x86_64-with-solvers $@ && \
+		rm saw.tar.gz
