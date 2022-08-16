@@ -3,11 +3,17 @@ import os
 import sys
 import logging
 import argparse
+from multiprocessing import Pool
 from typing import List
 from collections import OrderedDict
 
 import config
 from util import cd, enable_coloring_in_logging, execute, execute3, envpaths
+
+
+#
+# Preparation
+#
 
 
 def build_bitcode(clean: bool) -> None:
@@ -19,6 +25,19 @@ def build_bitcode(clean: bool) -> None:
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_LLVM, "bin")):
             execute(["make", "bitcode/all_llvm.bc"])
+
+
+#
+# Verification
+#
+
+
+def _get_verification_targets() -> List[str]:
+    all_saw_scripts = OrderedDict()
+    for item in os.listdir(config.PATH_BASE):
+        if item.endswith(".saw"):
+            all_saw_scripts[item] = True  # this is a dummy value entry
+    return [item for item in all_saw_scripts]
 
 
 def verify_one(item: str) -> None:
@@ -33,6 +52,17 @@ def verify_one(item: str) -> None:
                 pout=file_out,
                 perr=file_err,
             )
+
+
+def verify_all_parallel() -> None:
+    all_saw_scripts = _get_verification_targets()
+    pool = Pool(config.NUM_CORES)
+    pool.map(verify_one, all_saw_scripts)
+
+
+#
+# Entrypoint
+#
 
 
 def main(argv: List[str]) -> int:
@@ -71,17 +101,9 @@ def main(argv: List[str]) -> int:
         build_bitcode(args.clean)
 
     elif args.cmd == "verify":
-        # collect all saw files
-        all_saw_scripts = OrderedDict()
-        for item in os.listdir(config.PATH_BASE):
-            if item.endswith(".saw"):
-                all_saw_scripts[item] = True  # this is a dummy
-
         if args.input == "ALL":
-            for item in all_saw_scripts.keys():
-                verify_one(item)
+            verify_all_parallel()
         else:
-            assert args.input in all_saw_scripts
             verify_one(args.input)
 
     else:
