@@ -25,7 +25,7 @@ CC	:= $(CROSS_COMPILE)$(CC)
 CXX	:= $(CROSS_COMPILE)$(CXX)
 AR	= $(CROSS_COMPILE)ar
 RANLIB	= $(CROSS_COMPILE)ranlib
-CLANG    ?= clang-3.9
+CLANG    ?= clang
 LLVMLINK ?= llvm-link
 
 SOURCES = $(wildcard *.c *.h)
