@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 import argparse
+import shutil
 from multiprocessing import Pool
 from typing import List
 from collections import OrderedDict
@@ -25,6 +26,13 @@ def build_bitcode(clean: bool) -> None:
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_LLVM, "bin")):
             execute(["make", "bitcode/all_llvm.bc"])
+
+    # save a copy of the generated bitcode
+    os.makedirs(config.PATH_WORK_BITCODE, exist_ok=True)
+    shutil.copyfile(
+        os.path.join(config.PATH_ORIG_BITCODE_ALL_LLVM),
+        os.path.join(config.PATH_WORK_BITCODE_ALL_LLVM),
+    )
 
 
 #
@@ -61,6 +69,26 @@ def verify_all_parallel() -> None:
     pool.map(verify_one, all_saw_scripts)
 
 
+def _run_mutation_pass(args: List[str]) -> None:
+    with cd(config.PATH_BASE):
+        with envpaths(os.path.join(config.PATH_DEPS_LLVM, "bin")):
+            execute(
+                [
+                    "opt",
+                    "-load",
+                    config.PATH_DEPS_PASS_LIB,
+                    "-o",
+                    config.PATH_ORIG_BITCODE_ALL_LLVM,
+                    config.PATH_WORK_BITCODE_ALL_LLVM,
+                    *args,
+                ]
+            )
+
+
+def mutation_init() -> None:
+    _run_mutation_pass([])
+
+
 #
 # Entrypoint
 #
@@ -81,6 +109,14 @@ def main(argv: List[str]) -> int:
     # args: verify
     parser_verify = parser_subs.add_parser("verify", help="verify a single saw script")
     parser_verify.add_argument("input")
+
+    # args: mutation pass
+    parser_pass = parser_subs.add_parser(
+        "pass", help="invoke a single action on the mutation pass"
+    )
+    parser_pass_subs = parser_pass.add_subparsers(dest="cmd_pass")
+    parser_pass_subs_init = parser_pass_subs.add_parser("init")
+    parser_pass_subs_init.add_argument("-o", "--output")
 
     # parse arguments
     args = parser.parse_args(argv)
@@ -107,8 +143,17 @@ def main(argv: List[str]) -> int:
         else:
             verify_one(args.input)
 
+    elif args.cmd == "pass":
+        if args.cmd_pass == "init":
+            mutation_init()
+
+        else:
+            parser_pass.print_help()
+            return -1
+
     else:
         parser.print_help()
+        return -1
 
     return 0
 
