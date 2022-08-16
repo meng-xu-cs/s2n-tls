@@ -3,6 +3,7 @@ define cmdline
 Please choose one of the following targets:
   - llvm-3.9.1
   - saw-0.9
+  - pass
 endef
 export cmdline
 
@@ -45,3 +46,11 @@ saw-0.9:
 		tar xvf saw.tar.gz && \
 		mv saw-0.9-Linux-x86_64-with-solvers $@ && \
 		rm saw.tar.gz
+
+pass:
+	@mkdir -p $(TARGET_DIR)/pass
+	###
+	@echo "Building pass"
+	@cd $(TARGET_DIR)/pass && \
+		cmake -G Ninja ../../Pass && \
+		ninja
