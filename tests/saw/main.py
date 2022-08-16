@@ -7,7 +7,7 @@ from typing import List
 from collections import OrderedDict
 
 import config
-from util import cd, enable_coloring_in_logging, execute, envpaths
+from util import cd, enable_coloring_in_logging, execute, execute3, envpaths
 
 
 def build_bitcode(clean: bool) -> None:
@@ -21,10 +21,18 @@ def build_bitcode(clean: bool) -> None:
             execute(["make", "bitcode/all_llvm.bc"])
 
 
-def verify_one(input: str) -> None:
+def verify_one(item: str) -> None:
+    file_out = os.path.join(config.PATH_WORK_SAW, item + ".out")
+    file_err = os.path.join(config.PATH_WORK_SAW, item + ".err")
+    file_log = os.path.join(config.PATH_WORK_SAW, item + ".log")
+
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_SAW, "bin")):
-            execute(["saw", input])
+            execute3(
+                ["saw", "-s", file_log, "-f", "json", item],
+                pout=file_out,
+                perr=file_err,
+            )
 
 
 def main(argv: List[str]) -> int:
@@ -34,13 +42,13 @@ def main(argv: List[str]) -> int:
     parser_subs = parser.add_subparsers(dest="cmd")
 
     # args: bitcode
-    parser_bitcode = parser_subs.add_parser("bitcode",
-                                            help="build the all_llvm.bc file")
+    parser_bitcode = parser_subs.add_parser(
+        "bitcode", help="build the all_llvm.bc file"
+    )
     parser_bitcode.add_argument("--clean", action="store_true")
 
     # args: verify
-    parser_verify = parser_subs.add_parser("verify",
-                                           help="verify a single saw script")
+    parser_verify = parser_subs.add_parser("verify", help="verify a single saw script")
     parser_verify.add_argument("input")
 
     # parse arguments

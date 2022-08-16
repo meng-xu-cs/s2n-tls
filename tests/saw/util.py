@@ -108,13 +108,13 @@ def execute(
             try:
                 rc = p.wait(timeout=timeout)
                 if rc != 0:
-                    raise RuntimeError(
+                    raise subprocess.SubprocessError(
                         "Failed to execute {}: exit code {}".format(" ".join(cmd), rc)
                     )
                 return
             except subprocess.TimeoutExpired:
                 p.kill()
-                raise RuntimeError(
+                raise subprocess.SubprocessError(
                     "Failed to execute {}: timed out".format(" ".join(cmd))
                 )
 
