@@ -44,6 +44,7 @@ def verify_one(item: str) -> None:
     file_out = os.path.join(config.PATH_WORK_SAW, item + ".out")
     file_err = os.path.join(config.PATH_WORK_SAW, item + ".err")
     file_log = os.path.join(config.PATH_WORK_SAW, item + ".log")
+    os.makedirs(os.path.dirname(file_log), exist_ok=True)
 
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_SAW, "bin")):
