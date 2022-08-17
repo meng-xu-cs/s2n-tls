@@ -80,6 +80,9 @@ struct MutationTestPass : public ModulePass {
         raw_fd_ostream stm(Output.getValue(), ec, llvm::sys::fs::F_RW);
         stm << result.dump(4);
       }
+
+      // may or may not change
+      return mutated.hasValue();
     }
 
     // abort if we see an unknown command
