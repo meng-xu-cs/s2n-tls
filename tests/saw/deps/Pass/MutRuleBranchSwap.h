@@ -21,6 +21,18 @@ public:
     const auto &branch_inst = cast<BranchInst>(i);
     return branch_inst.isConditional();
   }
+
+  Optional<json> run_mutate(Instruction &i) const override {
+    auto &branch_inst = cast<BranchInst>(i);
+    branch_inst.swapSuccessors();
+    return json::object();
+  }
+
+  void run_replay(Instruction &i,
+                  [[maybe_unused]] const json &info) const override {
+    auto &branch_inst = cast<BranchInst>(i);
+    branch_inst.swapSuccessors();
+  }
 };
 
 } // namespace mutest
