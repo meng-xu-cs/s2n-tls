@@ -16,4 +16,5 @@ SET(CMAKE_CXX_FLAGS "-Wall -fno-rtti")
 
 # add code for the pass
 add_library(Mutation MODULE
-            Mutation.cpp)
+            Mutation.cpp
+            MutRuleBranchSwap.cpp)
