@@ -106,7 +106,7 @@ def _collect_verified_functions() -> List[str]:
     return sorted(verified_functions)
 
 
-def _run_mutation_pass(args: List[str]) -> None:
+def _run_mutation_pass(bc_from: str, bc_into: str, args: List[str]) -> None:
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_LLVM, "bin")):
             execute(
@@ -116,8 +116,8 @@ def _run_mutation_pass(args: List[str]) -> None:
                     config.PATH_DEPS_PASS_LIB,
                     "-mutest",
                     "-o",
-                    config.PATH_ORIG_BITCODE_ALL_LLVM,
-                    config.PATH_WORK_BITCODE_ALL_LLVM,
+                    bc_into,
+                    bc_from,
                     *args,
                 ]
             )
@@ -133,13 +133,27 @@ def mutation_init() -> None:
 
     # now invoke the llvm pass to collect mutation points
     _run_mutation_pass(
+        config.PATH_WORK_BITCODE_ALL_LLVM,
+        config.PATH_ORIG_BITCODE_ALL_LLVM,
         [
             "init",
             "-mutest-input",
             config.PATH_WORK_FUZZ_ENTRY_TARGETS,
             "-mutest-output",
             config.PATH_WORK_FUZZ_MUTATION_POINTS,
-        ]
+        ],
+    )
+
+
+def mutation_pass_replay(seed: str) -> None:
+    _run_mutation_pass(
+        config.PATH_WORK_BITCODE_ALL_LLVM,
+        config.PATH_ORIG_BITCODE_ALL_LLVM,
+        [
+            "replay",
+            "-mutest-input",
+            seed,
+        ],
     )
 
 
@@ -152,6 +166,14 @@ def fuzz_start(clean: bool) -> None:
     if not os.path.exists(config.PATH_WORK_FUZZ_MUTATION_POINTS):
         mutation_init()
         logging.info("Mutation points collected")
+
+    # load the seeds
+    os.makedirs(config.PATH_WORK_FUZZ_SEED_DIR, exist_ok=True)
+    logging.info(
+        "Processing existing fuzzing seeds: {}".format(
+            len(os.listdir(config.PATH_WORK_FUZZ_SEED_DIR))
+        )
+    )
 
 
 #
