@@ -87,7 +87,10 @@ def _run_mutation_pass(args: List[str]) -> None:
 
 
 def mutation_init() -> None:
-    _run_mutation_pass(["init"])
+    os.makedirs(config.PATH_WORK_FUZZ, exist_ok=True)
+    _run_mutation_pass(
+        ["init", "-mutest-output", config.PATH_WORK_FUZZ_MUTATION_POINTS]
+    )
 
 
 #
