@@ -4,6 +4,7 @@ import sys
 import logging
 import argparse
 import shutil
+import json
 from multiprocessing import Pool
 from typing import List
 from collections import OrderedDict
@@ -39,11 +40,17 @@ def build_bitcode(clean: bool) -> None:
 # Verification
 #
 
+# TODO: ideally we should not ignore any SAW scripts.
+IGNORED_TOP_LEVEL_SAW_SCRIPTS = [
+    # ignored because of lengthy and nondeterministic verification
+    "verify_imperative_cryptol_spec.saw"
+]
+
 
 def _get_verification_targets() -> List[str]:
     all_saw_scripts = OrderedDict()
     for item in os.listdir(config.PATH_BASE):
-        if item.endswith(".saw"):
+        if item.endswith(".saw") and item not in IGNORED_TOP_LEVEL_SAW_SCRIPTS:
             all_saw_scripts[item] = True  # this is a dummy value entry
     return [item for item in all_saw_scripts]
 
@@ -69,6 +76,30 @@ def verify_all_parallel() -> None:
     pool.map(verify_one, all_saw_scripts)
 
 
+def _collect_verified_functions() -> List[str]:
+    # collect SAW files
+    saw_scripts = _get_verification_targets()
+    for base, _, files in os.walk(os.path.join(config.PATH_BASE, "spec")):
+        for item in files:
+            if item.endswith(".saw"):
+                saw_scripts.append(os.path.join(base, item))
+
+    # extract verified functions
+    verified_functions = set()
+    for script in saw_scripts:
+        with open(script) as f:
+            for line in f:
+                tokens = line.strip().split()
+                for i, tok in enumerate(tokens):
+                    if tok == "crucible_llvm_verify":
+                        target = tokens[i + 2]
+                        assert target.startswith('"')
+                        assert target.endswith('"')
+                        verified_functions.add(target[1:-1])
+
+    return sorted(verified_functions)
+
+
 def _run_mutation_pass(args: List[str]) -> None:
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_LLVM, "bin")):
@@ -88,8 +119,21 @@ def _run_mutation_pass(args: List[str]) -> None:
 
 def mutation_init() -> None:
     os.makedirs(config.PATH_WORK_FUZZ, exist_ok=True)
+
+    # we need these high-level verified functions to build a call graph
+    targets = _collect_verified_functions()
+    with open(config.PATH_WORK_FUZZ_ENTRY_TARGETS, "w") as f:
+        json.dump(targets, f, indent=4)
+
+    # now invoke the llvm pass to collect mutation points
     _run_mutation_pass(
-        ["init", "-mutest-output", config.PATH_WORK_FUZZ_MUTATION_POINTS]
+        [
+            "init",
+            "-mutest-input",
+            config.PATH_WORK_FUZZ_ENTRY_TARGETS,
+            "-mutest-output",
+            config.PATH_WORK_FUZZ_MUTATION_POINTS,
+        ]
     )
 
 
