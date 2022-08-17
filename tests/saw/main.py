@@ -70,6 +70,12 @@ def verify_one(item: str) -> None:
             )
 
 
+def verify_all_sequential() -> None:
+    all_saw_scripts = _get_verification_targets()
+    for script in all_saw_scripts:
+        verify_one(script)
+
+
 def verify_all_parallel() -> None:
     all_saw_scripts = _get_verification_targets()
     pool = Pool(config.NUM_CORES)
@@ -137,6 +143,17 @@ def mutation_init() -> None:
     )
 
 
+def fuzz_start(clean: bool) -> None:
+    if clean:
+        shutil.rmtree(config.PATH_WORK_FUZZ)
+        logging.info("Previous fuzzing work cleared out")
+
+    # initialize the necessary information
+    if not os.path.exists(config.PATH_WORK_FUZZ_MUTATION_POINTS):
+        mutation_init()
+        logging.info("Mutation points collected")
+
+
 #
 # Entrypoint
 #
@@ -165,6 +182,10 @@ def main(argv: List[str]) -> int:
     parser_pass_subs = parser_pass.add_subparsers(dest="cmd_pass")
     parser_pass_subs_init = parser_pass_subs.add_parser("init")
     parser_pass_subs_init.add_argument("-o", "--output")
+
+    # args: fuzzing
+    parser_fuzz = parser_subs.add_parser("fuzz", help="fuzzily mutation testing")
+    parser_fuzz.add_argument("--clean", action="store_true")
 
     # parse arguments
     args = parser.parse_args(argv)
@@ -198,6 +219,9 @@ def main(argv: List[str]) -> int:
         else:
             parser_pass.print_help()
             return -1
+
+    elif args.cmd == "fuzz":
+        fuzz_start(args.clean)
 
     else:
         parser.print_help()
