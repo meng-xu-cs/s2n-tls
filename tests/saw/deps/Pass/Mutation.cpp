@@ -1,6 +1,7 @@
 #include <llvm/Pass.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_os_ostream.h>
 
 #include "MutRules.h"
@@ -25,6 +26,11 @@ static cl::opt<size_t>
 static cl::opt<std::string> TargetRule("mutest-target-rule",
                                        cl::desc("name of the mutation rule"),
                                        cl::Optional, cl::ValueRequired);
+
+static cl::opt<std::string>
+    ReplayTrace("mutest-replay-trace",
+                cl::desc("trace file to replay the mutations"), cl::Optional,
+                cl::ValueRequired);
 
 namespace mutest {
 
@@ -83,6 +89,27 @@ struct MutationTestPass : public ModulePass {
 
       // may or may not change
       return mutated.hasValue();
+    }
+
+    if (Action == "replay") {
+      assert(!ReplayTrace.getValue().empty() && "-mutest-replay-trace not set");
+
+      // load the trace file
+      auto buffer = MemoryBuffer::getFile(ReplayTrace);
+      assert(buffer && "Unable to load the trace file");
+      json trace = json::parse((*buffer)->getBuffer());
+
+      // replay the trace
+      for (const auto &entry : trace) {
+        auto [rule, i] = find_rule_and_mutation_point(
+            all_mutation_rules(), m, entry["rule"].get<std::string>(),
+            entry["function"].get<std::string>(),
+            entry["instruction"].get<size_t>());
+        rule.run_replay(i, entry["package"]);
+      }
+
+      // may or may not change
+      return !trace.empty();
     }
 
     // abort if we see an unknown command
