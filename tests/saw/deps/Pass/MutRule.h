@@ -25,12 +25,12 @@ public:
   virtual bool can_mutate(const Instruction &i) const { return false; }
 
   /// Perform the mutation
-  virtual Optional<json> run_mutate(Instruction *i) const {
+  virtual Optional<json> run_mutate(Instruction &i) const {
     return Optional<json>();
   }
 
   /// Replay the mutation
-  virtual void run_replay(Instruction *i, const json &info) const {}
+  virtual void run_replay(Instruction &i, const json &info) const {}
 };
 
 } // namespace mutest
