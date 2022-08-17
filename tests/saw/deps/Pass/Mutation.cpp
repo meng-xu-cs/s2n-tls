@@ -11,6 +11,8 @@ using namespace llvm;
 static cl::opt<std::string> Action(cl::Positional, cl::desc("action to take"),
                                    cl::Required);
 
+static cl::opt<std::string> Input("mutest-input", cl::desc("input for mutest"),
+                                  cl::Optional, cl::ValueRequired);
 static cl::opt<std::string> Output("mutest-output",
                                    cl::desc("output for mutest"), cl::Optional,
                                    cl::ValueRequired);
@@ -26,11 +28,6 @@ static cl::opt<size_t>
 static cl::opt<std::string> TargetRule("mutest-target-rule",
                                        cl::desc("name of the mutation rule"),
                                        cl::Optional, cl::ValueRequired);
-
-static cl::opt<std::string>
-    ReplayTrace("mutest-replay-trace",
-                cl::desc("trace file to replay the mutations"), cl::Optional,
-                cl::ValueRequired);
 
 namespace mutest {
 
@@ -92,10 +89,10 @@ struct MutationTestPass : public ModulePass {
     }
 
     if (Action == "replay") {
-      assert(!ReplayTrace.getValue().empty() && "-mutest-replay-trace not set");
+      assert(!Input.getValue().empty() && "-mutest-input not set");
 
       // load the trace file
-      auto buffer = MemoryBuffer::getFile(ReplayTrace);
+      auto buffer = MemoryBuffer::getFile(Input);
       assert(buffer && "Unable to load the trace file");
       json trace = json::parse((*buffer)->getBuffer());
 
