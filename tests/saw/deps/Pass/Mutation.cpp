@@ -1,5 +1,6 @@
 #include <llvm/Pass.h>
 #include <llvm/Support/CommandLine.h>
+#include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_os_ostream.h>
 
 #include "MutRules.h"
@@ -8,6 +9,9 @@ using namespace llvm;
 
 static cl::opt<std::string> Action(cl::Positional, cl::desc("action to take"),
                                    cl::Required);
+static cl::opt<std::string> Output("mutest-output",
+                                   cl::desc("output for mutest"), cl::Optional,
+                                   cl::ValueRequired);
 
 namespace mutest {
 
@@ -18,7 +22,16 @@ struct MutationTestPass : public ModulePass {
 
   bool runOnModule(Module &m) override {
     if (Action == "init") {
-      collect_mutation_points(m);
+      auto result = collect_mutation_points(m);
+
+      // dump the result
+      if (Output.empty()) {
+        outs() << result.dump(4) << '\n';
+      } else {
+        std::error_code ec;
+        raw_fd_ostream stm(Output.getValue(), ec, llvm::sys::fs::F_RW);
+        stm << result.dump(4);
+      }
 
       // bitcode not changed
       return false;
@@ -51,8 +64,6 @@ protected:
       }
     }
 
-    // TODO
-    outs() << mutation_points.dump(4) << '\n';
     return mutation_points;
   }
 };
