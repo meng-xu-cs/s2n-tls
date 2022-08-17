@@ -52,5 +52,5 @@ pass:
 	###
 	@echo "Building pass"
 	@cd $(TARGET_DIR)/pass && \
-		cmake -G Ninja ../../Pass && \
+		cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../../Pass && \
 		ninja

@@ -1,3 +1,5 @@
+#include <llvm/ADT/StringSet.h>
+#include <llvm/Analysis/CallGraph.h>
 #include <llvm/Pass.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FileSystem.h>
@@ -38,7 +40,30 @@ struct MutationTestPass : public ModulePass {
 
   bool runOnModule(Module &m) override {
     if (Action == "init") {
-      auto result = collect_mutation_points(m);
+      assert(!Input.getValue().empty() && "-mutest-input not set");
+
+      // load the top-level verification targets
+      auto buffer = MemoryBuffer::getFile(Input);
+      assert(buffer && "Unable to load the entry target list");
+      json targets = json::parse((*buffer)->getBuffer());
+
+      // collect the transitive closure from the call graph
+      StringSet todo_set;
+      StringSet done_set;
+      for (const auto &target : targets) {
+        todo_set.insert(target.get<std::string>());
+      }
+
+      CallGraph cg(m);
+      while (!todo_set.empty()) {
+        collect_verification_scope(cg, todo_set, done_set);
+      }
+      errs() << "[mutest] "
+             << "verification scope contains " << done_set.size() << " function"
+             << '\n';
+
+      // collect mutation points
+      auto result = collect_mutation_points(m, done_set);
 
       // dump the result
       if (Output.empty()) {
@@ -115,12 +140,65 @@ struct MutationTestPass : public ModulePass {
   }
 
 protected:
-  static json collect_mutation_points(const Module &m) {
+  static void collect_verification_scope(const CallGraph &cg,
+                                         StringSet<MallocAllocator> &todo,
+                                         StringSet<MallocAllocator> &done) {
+    auto external_callee = cg.getCallsExternalNode();
+    auto external_caller = cg.getExternalCallingNode();
+
+    for (const auto &[f, caller_node] : cg) {
+      // ignore theoretical nodes
+      if (caller_node.get() == external_caller ||
+          caller_node.get() == external_callee) {
+        continue;
+      }
+
+      auto caller = f->getName();
+
+      // ignore processed nodes
+      if (done.find(caller) != done.end()) {
+        continue;
+      }
+      // ignore nodes that are not even in the work list
+      if (todo.find(caller) == todo.end()) {
+        continue;
+      }
+
+      // now we need to process this function
+      for (const auto &[_, callee_node] : *caller_node) {
+        if (callee_node == nullptr) {
+          continue;
+        }
+        if (callee_node == external_callee) {
+          continue;
+        }
+
+        auto callee = callee_node->getFunction()->getName();
+        if (done.find(callee) != done.end()) {
+          continue;
+        }
+        todo.insert(callee);
+      }
+
+      // move the processed function from work list to done list
+      todo.erase(caller);
+      done.insert(caller);
+    }
+  }
+
+  static json collect_mutation_points(const Module &m,
+                                      const StringSet<MallocAllocator> &scope) {
     json mutation_points = json::array();
 
     const auto rules = all_mutation_rules();
     for (const auto &f : m) {
       auto func_name = f.getName();
+      // only mutate within the verification scope
+      if (scope.find(func_name) == scope.end()) {
+        continue;
+      }
+
+      // assign each instruction a unique counter value
       size_t inst_count = 0;
       for (const auto &bb : f) {
         for (const auto &i : bb) {
