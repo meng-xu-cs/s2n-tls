@@ -77,6 +77,7 @@ def _run_mutation_pass(args: List[str]) -> None:
                     "opt",
                     "-load",
                     config.PATH_DEPS_PASS_LIB,
+                    "-mutest",
                     "-o",
                     config.PATH_ORIG_BITCODE_ALL_LLVM,
                     config.PATH_WORK_BITCODE_ALL_LLVM,
@@ -86,7 +87,7 @@ def _run_mutation_pass(args: List[str]) -> None:
 
 
 def mutation_init() -> None:
-    _run_mutation_pass([])
+    _run_mutation_pass(["init"])
 
 
 #
