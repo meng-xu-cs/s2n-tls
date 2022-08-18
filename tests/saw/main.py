@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import os
 import subprocess
 import sys
@@ -6,9 +7,11 @@ import logging
 import argparse
 import shutil
 import json
+import re
 from multiprocessing import Pool
-from typing import List
+from typing import List, Set
 from collections import OrderedDict
+from dataclasses import dataclass
 
 import config
 from util import cd, enable_coloring_in_logging, execute, execute3, envpaths
@@ -56,6 +59,49 @@ def _get_verification_targets() -> List[str]:
     return [item for item in all_saw_scripts]
 
 
+@dataclass
+class VerificationError(object):
+    goal: str
+    location: str
+    message: str
+    details: str
+
+
+def _parse_failure_report(item: str) -> List[VerificationError]:
+    error_pattern = re.compile(
+        r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?): (.+?)$"
+    )
+
+    result: List[VerificationError] = []
+
+    # scan for the stdout file for error patterns
+    file_out = os.path.join(config.PATH_WORK_SAW, item + ".out")
+    with open(file_out) as f:
+        pending_error = None
+        for line in f:
+            line = line.strip()
+
+            # consume the next line after the error message
+            if pending_error is not None:
+                pending_error.details = line
+                result.append(pending_error)
+                pending_error = None
+                continue
+
+            # check for error message
+            match = error_pattern.match(line)
+            if not match:
+                continue
+
+            # this line represents an error
+            pending_error = VerificationError(
+                match.group(1), match.group(2), match.group(3), ""
+            )
+
+    assert len(result) != 0
+    return result
+
+
 def verify_one(item: str) -> bool:
     file_out = os.path.join(config.PATH_WORK_SAW, item + ".out")
     file_err = os.path.join(config.PATH_WORK_SAW, item + ".err")
@@ -75,26 +121,28 @@ def verify_one(item: str) -> bool:
                 return False
 
 
-def verify_all_sequential() -> List[str]:
+def verify_all_sequential() -> Set[VerificationError]:
     all_saw_scripts = _get_verification_targets()
-    failure = []
+    errors = set()
     for script in all_saw_scripts:
         if not verify_one(script):
-            failure.append(script)
-    return failure
+            for err in _parse_failure_report(script):
+                errors.add(err)
+    return errors
 
 
-def verify_all_parallel() -> List[str]:
+def verify_all_parallel() -> Set[VerificationError]:
     all_saw_scripts = _get_verification_targets()
     pool = Pool(config.NUM_CORES)
     results = pool.map(verify_one, all_saw_scripts)
 
     # collect the failure cases
-    failure = []
+    errors = set()
     for result, script in zip(results, all_saw_scripts):
         if not result:
-            failure.append(script)
-    return failure
+            for err in _parse_failure_report(script):
+                errors.add(err)
+    return errors
 
 
 def _collect_verified_functions() -> List[str]:
@@ -245,12 +293,12 @@ def main(argv: List[str]) -> int:
 
     elif args.cmd == "verify":
         if args.input == "ALL":
-            failed = verify_all_parallel()
-            for item in failed:
-                logging.warning("Verification failed: {}".format(item))
+            errors = verify_all_parallel()
+            for item in errors:
+                logging.warning("Verification failed with error\n{}".format(item))
         else:
             if not verify_one(args.input):
-                logging.warning("Verification failed: {}".format(args.input))
+                logging.warning("Verification failed with error\n{}".format(args.input))
 
     elif args.cmd == "pass":
         if args.cmd_pass == "init":
