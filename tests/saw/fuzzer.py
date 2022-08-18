@@ -51,7 +51,7 @@ def _fuzzing_thread(tid: int) -> None:
     global GLOBAL_COV
     global GLOBAL_FLAG_HALT
 
-    logging.info("Thread-{}: started".format(tid))
+    logging.info("[Thread-{}] Fuzzing started".format(tid))
 
     # preparation
     path_instance = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, str(tid))
@@ -68,7 +68,7 @@ def _fuzzing_thread(tid: int) -> None:
             break
 
     # on halt
-    logging.info("Thread-{}: stopped".format(tid))
+    logging.info("[Thread-{}] Fuzzing stopped".format(tid))
 
 
 def fuzz_start(clean: bool, num_threads: int) -> None:
@@ -119,6 +119,11 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     try:
         while True:
             time.sleep(60)
+            # periodically refresh the coverage map
+            GLOBAL_LOCK.acquire()
+            _dump_cov_global()
+            GLOBAL_LOCK.release()
+            logging.info("Global coverage dump refreshed")
     except KeyboardInterrupt:
         GLOBAL_LOCK.acquire()
         GLOBAL_FLAG_HALT = True
