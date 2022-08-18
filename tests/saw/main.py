@@ -9,7 +9,7 @@ import shutil
 import json
 import re
 from multiprocessing import Pool
-from typing import List, Set
+from typing import List
 from collections import OrderedDict
 from dataclasses import dataclass
 
@@ -59,12 +59,23 @@ def _get_verification_targets() -> List[str]:
     return [item for item in all_saw_scripts]
 
 
-@dataclass
+@dataclass(frozen=True, eq=True, order=True)
 class VerificationError(object):
     goal: str
     location: str
     message: str
     details: str
+
+
+@dataclass
+class VerificationErrorBuilder(object):
+    goal: str
+    location: str
+    message: str
+    details: str
+
+    def build(self) -> VerificationError:
+        return VerificationError(self.goal, self.location, self.message, self.details)
 
 
 def _parse_failure_report(item: str) -> List[VerificationError]:
@@ -84,7 +95,7 @@ def _parse_failure_report(item: str) -> List[VerificationError]:
             # consume the next line after the error message
             if pending_error is not None:
                 pending_error.details = line
-                result.append(pending_error)
+                result.append(pending_error.build())
                 pending_error = None
                 continue
 
@@ -94,7 +105,7 @@ def _parse_failure_report(item: str) -> List[VerificationError]:
                 continue
 
             # this line represents an error
-            pending_error = VerificationError(
+            pending_error = VerificationErrorBuilder(
                 match.group(1), match.group(2), match.group(3), ""
             )
 
@@ -121,17 +132,17 @@ def verify_one(item: str) -> bool:
                 return False
 
 
-def verify_all_sequential() -> Set[VerificationError]:
+def verify_all_sequential() -> List[VerificationError]:
     all_saw_scripts = _get_verification_targets()
     errors = set()
     for script in all_saw_scripts:
         if not verify_one(script):
             for err in _parse_failure_report(script):
                 errors.add(err)
-    return errors
+    return sorted(errors)
 
 
-def verify_all_parallel() -> Set[VerificationError]:
+def verify_all_parallel() -> List[VerificationError]:
     all_saw_scripts = _get_verification_targets()
     pool = Pool(config.NUM_CORES)
     results = pool.map(verify_one, all_saw_scripts)
@@ -142,7 +153,7 @@ def verify_all_parallel() -> Set[VerificationError]:
         if not result:
             for err in _parse_failure_report(script):
                 errors.add(err)
-    return errors
+    return sorted(errors)
 
 
 def _collect_verified_functions() -> List[str]:
