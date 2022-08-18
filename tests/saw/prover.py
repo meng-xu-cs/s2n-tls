@@ -62,6 +62,7 @@ def collect_verified_functions() -> List[str]:
 
 @dataclass(frozen=True, eq=True, order=True)
 class VerificationError(object):
+    item: str
     goal: str
     location: str
     message: str
@@ -70,13 +71,16 @@ class VerificationError(object):
 
 @dataclass
 class VerificationErrorBuilder(object):
+    item: str
     goal: str
     location: str
     message: str
     details: str
 
     def build(self) -> VerificationError:
-        return VerificationError(self.goal, self.location, self.message, self.details)
+        return VerificationError(
+            self.item, self.goal, self.location, self.message, self.details
+        )
 
 
 def _parse_failure_report(item: str, workdir: str) -> List[VerificationError]:
@@ -107,7 +111,7 @@ def _parse_failure_report(item: str, workdir: str) -> List[VerificationError]:
 
             # this line represents an error
             pending_error = VerificationErrorBuilder(
-                match.group(1), match.group(2), match.group(3), ""
+                item, match.group(1), match.group(2), match.group(3), ""
             )
 
     assert len(result) != 0
@@ -124,7 +128,7 @@ def verify_one(item: str, workdir: str) -> bool:
         with envpaths(os.path.join(config.PATH_DEPS_SAW, "bin")):
             try:
                 execute3(
-                    ["saw", "-s", file_log, "-f", "json", item],
+                    ["saw", "-v", "debug", "-s", file_log, "-f", "json", item],
                     pout=file_out,
                     perr=file_err,
                 )
