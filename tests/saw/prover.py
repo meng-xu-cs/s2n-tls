@@ -5,7 +5,6 @@ SAW-related functionalities
 import os
 import subprocess
 import re
-from multiprocessing import Pool
 from typing import List
 from dataclasses import dataclass
 
@@ -80,7 +79,7 @@ class VerificationErrorBuilder(object):
         return VerificationError(self.goal, self.location, self.message, self.details)
 
 
-def _parse_failure_report(item: str) -> List[VerificationError]:
+def _parse_failure_report(item: str, workdir: str) -> List[VerificationError]:
     error_pattern = re.compile(
         r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?): (.+?)$"
     )
@@ -88,7 +87,7 @@ def _parse_failure_report(item: str) -> List[VerificationError]:
     result: List[VerificationError] = []
 
     # scan for the stdout file for error patterns
-    file_out = os.path.join(config.PATH_WORK_SAW, item + ".out")
+    file_out = os.path.join(workdir, item + ".out")
     with open(file_out) as f:
         pending_error = None
         for line in f:
@@ -115,11 +114,11 @@ def _parse_failure_report(item: str) -> List[VerificationError]:
     return result
 
 
-def verify_one(item: str) -> bool:
-    file_out = os.path.join(config.PATH_WORK_SAW, item + ".out")
-    file_err = os.path.join(config.PATH_WORK_SAW, item + ".err")
-    file_log = os.path.join(config.PATH_WORK_SAW, item + ".log")
-    os.makedirs(os.path.dirname(file_log), exist_ok=True)
+def verify_one(item: str, workdir: str) -> bool:
+    os.makedirs(os.path.dirname(workdir), exist_ok=True)
+    file_out = os.path.join(workdir, item + ".out")
+    file_err = os.path.join(workdir, item + ".err")
+    file_log = os.path.join(workdir, item + ".log")
 
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_SAW, "bin")):
@@ -134,19 +133,15 @@ def verify_one(item: str) -> bool:
                 return False
 
 
-def verify_all(parallel: bool) -> List[VerificationError]:
+def verify_all(workdir: str) -> List[VerificationError]:
     # run the verification
     all_saw_scripts = _collect_saw_scripts()
-    if parallel:
-        pool = Pool(config.NUM_CORES)
-        results = pool.map(verify_one, all_saw_scripts)
-    else:
-        results = [verify_one(script) for script in all_saw_scripts]
+    results = [verify_one(script, workdir) for script in all_saw_scripts]
 
     # collect the failure cases
     errors = set()
     for result, script in zip(results, all_saw_scripts):
         if not result:
-            for err in _parse_failure_report(script):
+            for err in _parse_failure_report(script, workdir):
                 errors.add(err)
     return sorted(errors)

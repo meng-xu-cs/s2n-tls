@@ -53,6 +53,12 @@ def _fuzzing_thread(tid: int) -> None:
 
     logging.info("Thread-{}: started".format(tid))
 
+    # preparation
+    path_instance = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, str(tid))
+    path_saw = os.path.join(path_instance, "saw")
+    os.makedirs(path_saw, exist_ok=True)
+
+    # fuzzing loop
     while True:
         # decide whether to halt the process
         GLOBAL_LOCK.acquire()
@@ -61,6 +67,7 @@ def _fuzzing_thread(tid: int) -> None:
         if should_halt:
             break
 
+    # on halt
     logging.info("Thread-{}: stopped".format(tid))
 
 

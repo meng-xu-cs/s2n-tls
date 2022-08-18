@@ -62,11 +62,11 @@ def main(argv: List[str]) -> int:
 
     elif args.cmd == "verify":
         if args.input == "ALL":
-            errors = verify_all(parallel=True)
+            errors = verify_all(config.PATH_WORK_SAW)
             for item in errors:
                 logging.warning("Verification failed with error\n{}".format(item))
         else:
-            if not verify_one(args.input):
+            if not verify_one(args.input, config.PATH_WORK_SAW):
                 logging.warning("Verification failed with error\n{}".format(args.input))
 
     elif args.cmd == "pass":
