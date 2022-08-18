@@ -94,13 +94,13 @@ def mutation_init() -> List[MutationPoint]:
     return load_mutation_points()
 
 
-def mutation_pass_replay(seed: str) -> None:
+def mutation_pass_replay(trace: str) -> None:
     _run_mutation_pass(
         config.PATH_WORK_BITCODE_ALL_LLVM,
         config.PATH_ORIG_BITCODE_ALL_LLVM,
         [
             "replay",
             "-mutest-input",
-            seed,
+            trace,
         ],
     )
