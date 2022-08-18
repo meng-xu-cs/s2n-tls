@@ -23,7 +23,7 @@ static cl::opt<std::string>
     TargetFunction("mutest-target-function",
                    cl::desc("name of the mutated function"), cl::Optional,
                    cl::ValueRequired);
-static cl::opt<size_t>
+static cl::opt<std::string>
     TargetInstruction("mutest-target-instruction",
                       cl::desc("count of the mutation instruction"),
                       cl::Optional, cl::ValueRequired);
@@ -82,14 +82,14 @@ struct MutationTestPass : public ModulePass {
       // sanity check the arguments
       assert(!TargetFunction.getValue().empty() &&
              "-mutest-target-function not set");
-      assert(TargetInstruction.getValue() != 0 &&
+      assert(!TargetInstruction.getValue().empty() &&
              "-mutest-target-instruction not set");
       assert(TargetRule.getValue().empty() && "-mutest-target-rule not set");
 
       // do the mutation
       const auto rules = all_mutation_rules();
       auto [rule, i] = find_rule_and_mutation_point(
-          rules, m, TargetRule, TargetFunction, TargetInstruction);
+          rules, m, TargetRule, TargetFunction, std::stol(TargetInstruction));
       auto mutated = rule.run_mutate(i);
 
       json result = json::object();
@@ -239,7 +239,7 @@ protected:
         for (auto &bb : f) {
           for (auto &i : bb) {
             inst_count += 1; // inst_count can never be 0
-            if (inst_count != TargetInstruction) {
+            if (inst_count != target_instruction) {
               continue;
             }
 
