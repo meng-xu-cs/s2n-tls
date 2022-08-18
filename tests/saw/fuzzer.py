@@ -20,7 +20,7 @@ from bitcode import (
     mutation_pass_mutate,
     load_mutation_points,
 )
-from prover import VerificationError
+from prover import VerificationError, verify_all
 
 #
 # Global variable shared across the threads
@@ -61,9 +61,9 @@ class Seed(object):
             jobj = json.load(f)
             return [MutationStep(**item) for item in jobj]
 
-    def _init_score(self) -> None:
+    def _init_score(self, delta: int) -> None:
         with open(self.path_score, "w") as f:
-            f.write(str(100))
+            f.write(str(100 + delta))
 
     def load_and_adjust_score(self, delta: int) -> int:
         with open(self.path_score) as f:
@@ -80,7 +80,9 @@ class Seed(object):
         return self.load_and_adjust_score(0)
 
     @staticmethod
-    def new_seed(trace: List[MutationStep], cov: List[VerificationError]) -> "Seed":
+    def new_seed(
+        trace: List[MutationStep], cov: List[VerificationError], delta: int
+    ) -> "Seed":
         while True:
             count = len(os.listdir(config.PATH_WORK_FUZZ_SEED_DIR))
             try:
@@ -89,7 +91,7 @@ class Seed(object):
                     exist_ok=False,
                 )
                 seed = Seed(str(count))
-                seed._init_score()
+                seed._init_score(delta)
                 seed._save_trace(trace)
                 seed._save_cov(cov)
                 return seed
@@ -137,7 +139,9 @@ def _fuzzing_thread(tid: int) -> None:
         score = sorted(GLOBAL_SEEDS.keys(), reverse=True)[0]
         choice = random.choice(GLOBAL_SEEDS[score])
         base_seed = Seed(choice)
-        # TODO: decrease the score
+
+        # decrement the score after pulling it out from the pool
+        base_seed.load_and_adjust_score(-1)
         GLOBAL_LOCK.release()
 
         logging.debug(
@@ -146,6 +150,7 @@ def _fuzzing_thread(tid: int) -> None:
             )
         )
 
+        old_cov = base_seed.load_cov()
         old_trace = base_seed.load_trace()
         new_trace = [step for step in old_trace]
 
@@ -201,6 +206,42 @@ def _fuzzing_thread(tid: int) -> None:
         # done with the new test case generation
         assert len(new_trace) - len(old_trace) == 1
 
+        # run the verification
+        new_cov = verify_all(path_saw)
+
+        # test for novelty of the seed
+        novelty_marks = 0
+        for entry in old_cov:
+            if entry not in new_cov:
+                # reward the seed for each error eliminated
+                novelty_marks += 1
+
+        GLOBAL_LOCK.acquire()
+        for entry in new_cov:
+            if entry not in GLOBAL_COV:
+                # reward the seed for each new error discovered
+                GLOBAL_COV.add(entry)
+                novelty_marks += 1
+        GLOBAL_LOCK.release()
+
+        # this is a boring case, ignore it
+        if novelty_marks == 0:
+            continue
+
+        # create a new seed
+        new_seed = Seed.new_seed(new_trace, new_cov, novelty_marks)
+        new_score = new_seed.load_score()
+
+        GLOBAL_LOCK.acquire()
+        # adjust the score for the base seed
+        # add 2 because we previously deducted one point from it
+        base_seed.load_and_adjust_score(2)
+
+        # add the new seed to queue
+        if new_score not in GLOBAL_SEEDS:
+            GLOBAL_SEEDS[new_score].append(new_seed.name)
+        GLOBAL_LOCK.release()
+
     # on halt
     logging.info("[Thread-{}] Fuzzing stopped".format(tid))
 
@@ -229,7 +270,7 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     path_seed_zero = os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, "0")
     if not os.path.exists(path_seed_zero):
         # base seed has no errors and no mutation trace
-        Seed.new_seed([], [])
+        Seed.new_seed([], [], 0)
 
     # prepare the seed queue and coverage map based on existing seeds
     logging.info(
