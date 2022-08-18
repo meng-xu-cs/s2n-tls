@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import subprocess
 import sys
 import logging
 import argparse
@@ -55,7 +56,7 @@ def _get_verification_targets() -> List[str]:
     return [item for item in all_saw_scripts]
 
 
-def verify_one(item: str) -> None:
+def verify_one(item: str) -> bool:
     file_out = os.path.join(config.PATH_WORK_SAW, item + ".out")
     file_err = os.path.join(config.PATH_WORK_SAW, item + ".err")
     file_log = os.path.join(config.PATH_WORK_SAW, item + ".log")
@@ -63,23 +64,37 @@ def verify_one(item: str) -> None:
 
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_SAW, "bin")):
-            execute3(
-                ["saw", "-s", file_log, "-f", "json", item],
-                pout=file_out,
-                perr=file_err,
-            )
+            try:
+                execute3(
+                    ["saw", "-s", file_log, "-f", "json", item],
+                    pout=file_out,
+                    perr=file_err,
+                )
+                return True
+            except subprocess.SubprocessError:
+                return False
 
 
-def verify_all_sequential() -> None:
+def verify_all_sequential() -> List[str]:
     all_saw_scripts = _get_verification_targets()
+    failure = []
     for script in all_saw_scripts:
-        verify_one(script)
+        if not verify_one(script):
+            failure.append(script)
+    return failure
 
 
-def verify_all_parallel() -> None:
+def verify_all_parallel() -> List[str]:
     all_saw_scripts = _get_verification_targets()
     pool = Pool(config.NUM_CORES)
-    pool.map(verify_one, all_saw_scripts)
+    results = pool.map(verify_one, all_saw_scripts)
+
+    # collect the failure cases
+    failure = []
+    for result, script in zip(results, all_saw_scripts):
+        if not result:
+            failure.append(script)
+    return failure
 
 
 def _collect_verified_functions() -> List[str]:
@@ -230,9 +245,12 @@ def main(argv: List[str]) -> int:
 
     elif args.cmd == "verify":
         if args.input == "ALL":
-            verify_all_parallel()
+            failed = verify_all_parallel()
+            for item in failed:
+                logging.warning("Verification failed: {}".format(item))
         else:
-            verify_one(args.input)
+            if not verify_one(args.input):
+                logging.warning("Verification failed: {}".format(args.input))
 
     elif args.cmd == "pass":
         if args.cmd_pass == "init":
