@@ -5,6 +5,7 @@ import logging
 import argparse
 from typing import List
 
+import config
 from util import enable_coloring_in_logging
 from bitcode import build_bitcode, mutation_init
 from prover import verify_one, verify_all
@@ -38,6 +39,7 @@ def main(argv: List[str]) -> int:
     # args: fuzzing
     parser_fuzz = parser_subs.add_parser("fuzz", help="fuzzily mutation testing")
     parser_fuzz.add_argument("--clean", action="store_true")
+    parser_fuzz.add_argument("-j", "--jobs", type=int, default=config.NUM_CORES)
 
     # parse arguments
     args = parser.parse_args(argv)
@@ -76,7 +78,7 @@ def main(argv: List[str]) -> int:
             return -1
 
     elif args.cmd == "fuzz":
-        fuzz_start(args.clean)
+        fuzz_start(args.clean, args.jobs)
 
     else:
         parser.print_help()
