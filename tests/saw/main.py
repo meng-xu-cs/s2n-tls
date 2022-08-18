@@ -7,7 +7,7 @@ from typing import List
 
 import config
 from util import enable_coloring_in_logging
-from bitcode import build_bitcode, mutation_init
+from bitcode import build_bitcode, mutation_init, mutation_pass_replay
 from prover import verify_one, verify_all
 from fuzzer import fuzz_start
 
@@ -33,8 +33,12 @@ def main(argv: List[str]) -> int:
         "pass", help="invoke a single action on the mutation pass"
     )
     parser_pass_subs = parser_pass.add_subparsers(dest="cmd_pass")
+
     parser_pass_subs_init = parser_pass_subs.add_parser("init")
     parser_pass_subs_init.add_argument("-o", "--output")
+
+    parser_pass_subs_replay = parser_pass_subs.add_parser("replay")
+    parser_pass_subs_replay.add_argument("input")
 
     # args: fuzzing
     parser_fuzz = parser_subs.add_parser("fuzz", help="fuzzily mutation testing")
@@ -73,6 +77,9 @@ def main(argv: List[str]) -> int:
         if args.cmd_pass == "init":
             mutation_points = mutation_init()
             logging.info("Mutation points collected: {}".format(len(mutation_points)))
+
+        elif args.cmd_pass == "replay":
+            mutation_pass_replay(args.input)
 
         else:
             parser_pass.print_help()

@@ -122,9 +122,10 @@ struct MutationTestPass : public ModulePass {
       json trace = json::parse((*buffer)->getBuffer());
 
       // replay the trace
+      const auto rules = all_mutation_rules();
       for (const auto &entry : trace) {
         auto [rule, i] = find_rule_and_mutation_point(
-            all_mutation_rules(), m, entry["rule"].get<std::string>(),
+            rules, m, entry["rule"].get<std::string>(),
             entry["function"].get<std::string>(),
             entry["instruction"].get<size_t>());
         rule.run_replay(i, entry["package"]);
@@ -244,7 +245,8 @@ protected:
             }
 
             // found the instruction
-            assert(rule->can_mutate(i));
+            assert(rule->can_mutate(i) &&
+                   "Rule cannot actually mutate the instruction");
             return {*rule, i};
           }
         }
