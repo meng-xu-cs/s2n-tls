@@ -117,6 +117,6 @@ def mutation_pass_mutate(point: MutationPoint) -> None:
             "-mutest-target-function",
             point.function,
             "-mutest-target-instruction",
-            point.instruction,
+            str(point.instruction),
         ],
     )
