@@ -98,6 +98,23 @@ class Seed(object):
             except FileExistsError:
                 pass
 
+    @staticmethod
+    def new_survival(trace: List[MutationStep], cov: List[VerificationError]) -> "Seed":
+        while True:
+            count = len(os.listdir(config.PATH_WORK_FUZZ_SURVIVAL_DIR))
+            try:
+                os.makedirs(
+                    os.path.join(config.PATH_WORK_FUZZ_SURVIVAL_DIR, str(count)),
+                    exist_ok=False,
+                )
+                seed = Seed(str(count))
+                seed._init_score(0)
+                seed._save_trace(trace)
+                seed._save_cov(cov)
+                return seed
+            except FileExistsError:
+                pass
+
 
 def _dump_cov_global() -> None:
     cov_path = os.path.join(config.PATH_WORK_FUZZ_STATUS_DIR, "cov.json")
@@ -142,6 +159,11 @@ def _fuzzing_thread(tid: int) -> None:
 
         # decrement the score after pulling it out from the pool
         base_seed.load_and_adjust_score(-1)
+        GLOBAL_SEEDS[score].remove(choice)
+        if (score - 1) not in GLOBAL_SEEDS:
+            GLOBAL_SEEDS[score - 1] = []
+        GLOBAL_SEEDS[score - 1].append(choice)
+
         GLOBAL_LOCK.release()
 
         logging.debug(
@@ -228,18 +250,33 @@ def _fuzzing_thread(tid: int) -> None:
         if novelty_marks == 0:
             continue
 
+        # adjust the score for the base seed
+        GLOBAL_LOCK.acquire()
+
+        # add 2 because we previously deducted one point from it
+        prev_score = base_seed.load_and_adjust_score(2)
+        GLOBAL_SEEDS[prev_score].remove(base_seed.name)
+        if (prev_score + 2) not in GLOBAL_SEEDS:
+            GLOBAL_SEEDS[prev_score + 2] = []
+        GLOBAL_SEEDS[prev_score + 2].append(base_seed.name)
+
+        GLOBAL_LOCK.release()
+
+        # in case we found a surviving mutant
+        if len(new_cov) == 0:
+            logging.warning("Surviving mutant found")
+            Seed.new_survival(new_trace, new_cov)
+            continue
+
         # create a new seed
         new_seed = Seed.new_seed(new_trace, new_cov, novelty_marks)
         new_score = new_seed.load_score()
 
-        GLOBAL_LOCK.acquire()
-        # adjust the score for the base seed
-        # add 2 because we previously deducted one point from it
-        base_seed.load_and_adjust_score(2)
-
         # add the new seed to queue
+        GLOBAL_LOCK.acquire()
         if new_score not in GLOBAL_SEEDS:
-            GLOBAL_SEEDS[new_score].append(new_seed.name)
+            GLOBAL_SEEDS[new_score] = []
+        GLOBAL_SEEDS[new_score].append(new_seed.name)
         GLOBAL_LOCK.release()
 
     # on halt
