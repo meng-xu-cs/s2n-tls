@@ -19,6 +19,8 @@ PATH_WORK_FUZZ = os.path.join(PATH_WORK, "fuzz")
 PATH_WORK_FUZZ_ENTRY_TARGETS = os.path.join(PATH_WORK_FUZZ, "entry-targets.json")
 PATH_WORK_FUZZ_MUTATION_POINTS = os.path.join(PATH_WORK_FUZZ, "mutation-points.json")
 PATH_WORK_FUZZ_SEED_DIR = os.path.join(PATH_WORK_FUZZ, "seeds")
+PATH_WORK_FUZZ_SURVIVAL_DIR = os.path.join(PATH_WORK_FUZZ, "survival")
+PATH_WORK_FUZZ_STATUS_DIR = os.path.join(PATH_WORK_FUZZ, "status")
 PATH_WORK_BITCODE = os.path.join(PATH_WORK, "bitcode")
 PATH_WORK_BITCODE_ALL_LLVM = os.path.join(PATH_WORK_BITCODE, "all_llvm.bc")
 
