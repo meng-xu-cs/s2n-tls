@@ -17,6 +17,7 @@ from bitcode import (
     MutationStep,
     mutation_init,
     mutation_pass_replay,
+    mutation_pass_mutate,
     load_mutation_points,
 )
 from prover import VerificationError
@@ -144,6 +145,7 @@ def _fuzzing_thread(tid: int) -> None:
         while True:
             mutation_point = random.choice(mutation_points)
 
+            # step 1: mutation point never appears in the trace
             valid = True
             for step in base_seed.load_trace():
                 if (
@@ -152,21 +154,26 @@ def _fuzzing_thread(tid: int) -> None:
                 ):
                     valid = False
                     break
-            if valid:
-                break
 
-        logging.debug(
-            "[Thread-{}]   next mutation: {} on {}::{}".format(
-                tid,
-                mutation_point.rule,
-                mutation_point.function,
-                mutation_point.instruction,
+            if not valid:
+                continue
+
+            logging.debug(
+                "[Thread-{}]   next mutation: {} on {}::{}".format(
+                    tid,
+                    mutation_point.rule,
+                    mutation_point.function,
+                    mutation_point.instruction,
+                )
             )
-        )
 
-        # replay the trace first
-        mutation_pass_replay(base_seed.path_trace)
-        logging.debug("[Thread-{}]   trace replayed".format(tid))
+            # step 2: actually produce the new mutant
+            mutation_pass_replay(base_seed.path_trace)
+            logging.debug("[Thread-{}]   trace replayed".format(tid))
+
+            mutation_pass_mutate(mutation_point)
+            logging.debug("[Thread-{}]   mutation applied".format(tid))
+            break
 
     # on halt
     logging.info("[Thread-{}] Fuzzing stopped".format(tid))

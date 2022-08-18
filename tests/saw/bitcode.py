@@ -104,3 +104,19 @@ def mutation_pass_replay(trace: str) -> None:
             trace,
         ],
     )
+
+
+def mutation_pass_mutate(point: MutationPoint) -> None:
+    _run_mutation_pass(
+        config.PATH_ORIG_BITCODE_ALL_LLVM,
+        config.PATH_ORIG_BITCODE_ALL_LLVM,
+        [
+            "mutate",
+            "-mutest-target-rule",
+            point.rule,
+            "-mutest-target-function",
+            point.function,
+            "-mutest-target-instruction",
+            point.instruction,
+        ],
+    )
