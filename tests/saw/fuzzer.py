@@ -112,8 +112,12 @@ def _fuzzing_thread(tid: int) -> None:
     # load the mutation points
     mutation_points = load_mutation_points()
 
-    # other preparation
+    # workspace preparation
     path_instance = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, str(tid))
+    os.makedirs(path_instance, exist_ok=True)
+
+    path_mutation_result = os.path.join(path_instance, "mutate_result.json")
+
     path_saw = os.path.join(path_instance, "saw")
     os.makedirs(path_saw, exist_ok=True)
 
@@ -132,14 +136,18 @@ def _fuzzing_thread(tid: int) -> None:
         GLOBAL_LOCK.acquire()
         score = sorted(GLOBAL_SEEDS.keys(), reverse=True)[0]
         choice = random.choice(GLOBAL_SEEDS[score])
+        base_seed = Seed(choice)
+        # TODO: decrease the score
         GLOBAL_LOCK.release()
 
-        base_seed = Seed(choice)
         logging.debug(
             "[Thread-{}] Mutating based on seed {} with score {}".format(
                 tid, base_seed.name, score
             )
         )
+
+        old_trace = base_seed.load_trace()
+        new_trace = [step for step in old_trace]
 
         # choose a mutation point that does not appear in previous trace
         while True:
@@ -147,7 +155,7 @@ def _fuzzing_thread(tid: int) -> None:
 
             # step 1: mutation point never appears in the trace
             valid = True
-            for step in base_seed.load_trace():
+            for step in old_trace:
                 if (
                     step.function == mutation_point.function
                     and step.instruction == mutation_point.instruction
@@ -171,9 +179,27 @@ def _fuzzing_thread(tid: int) -> None:
             mutation_pass_replay(base_seed.path_trace)
             logging.debug("[Thread-{}]   trace replayed".format(tid))
 
-            mutation_pass_mutate(mutation_point)
+            mutation_pass_mutate(mutation_point, path_mutation_result)
+            with open(path_mutation_result) as f:
+                mutate_result = json.load(f)
+
+            # this might be just paranoid, but just ensure that the mutation is applied
+            if not mutate_result["changed"]:
+                continue
+
+            new_trace.append(
+                MutationStep(
+                    mutation_point.rule,
+                    mutation_point.function,
+                    mutation_point.instruction,
+                    mutate_result["package"],
+                )
+            )
             logging.debug("[Thread-{}]   mutation applied".format(tid))
             break
+
+        # done with the new test case generation
+        assert len(new_trace) - len(old_trace) == 1
 
     # on halt
     logging.info("[Thread-{}] Fuzzing stopped".format(tid))
