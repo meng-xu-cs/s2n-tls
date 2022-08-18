@@ -71,7 +71,8 @@ def main(argv: List[str]) -> int:
 
     elif args.cmd == "pass":
         if args.cmd_pass == "init":
-            mutation_init()
+            mutation_points = mutation_init()
+            logging.info("Mutation points collected: {}".format(len(mutation_points)))
 
         else:
             parser_pass.print_help()

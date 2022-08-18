@@ -12,7 +12,7 @@ from threading import Thread, Lock
 from typing import List, Set
 
 import config
-from bitcode import mutation_init
+from bitcode import MutationStep, mutation_init, load_mutation_points
 from prover import VerificationError
 
 #
@@ -25,18 +25,66 @@ GLOBAL_COV: Set[VerificationError] = set()
 GLOBAL_FLAG_HALT: bool = False
 
 
-def _save_seed_cov(seed: str, cov: List[VerificationError]) -> None:
-    cov_path = os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, seed, "cov.json")
-    with open(cov_path, "w") as f:
-        jobj = [asdict(item) for item in cov]
-        json.dump(jobj, f, indent=4)
+class Seed(object):
+    def __init__(self, name: str):
+        self.path = os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, name)
 
+    def _save_cov(self, cov: List[VerificationError]) -> None:
+        path = os.path.join(self.path, "cov.json")
+        with open(path, "w") as f:
+            jobj = [asdict(item) for item in cov]
+            json.dump(jobj, f, indent=4)
 
-def _load_seed_cov(seed: str) -> List[VerificationError]:
-    cov_path = os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, seed, "cov.json")
-    with open(cov_path) as f:
-        jobj = json.load(f)
-        return [VerificationError(**item) for item in jobj]
+    def load_cov(self) -> List[VerificationError]:
+        path = os.path.join(self.path, "cov.json")
+        with open(path) as f:
+            jobj = json.load(f)
+            return [VerificationError(**item) for item in jobj]
+
+    def _save_trace(self, trace: List[MutationStep]) -> None:
+        path = os.path.join(self.path, "trace.json")
+        with open(path, "w") as f:
+            jobj = [asdict(item) for item in trace]
+            json.dump(jobj, f, indent=4)
+
+    def load_trace(self) -> List[MutationStep]:
+        path = os.path.join(self.path, "trace.json")
+        with open(path) as f:
+            jobj = json.load(f)
+            return [MutationStep(**item) for item in jobj]
+
+    def _init_score(self) -> None:
+        path = os.path.join(self.path, "score.txt")
+        with open(path, "w") as f:
+            f.write(str(100))
+
+    def load_and_adjust_score(self, delta: int) -> int:
+        path = os.path.join(self.path, "score.txt")
+        with open(path) as f:
+            old_score = int(f.readline().strip())
+
+        new_score = max(old_score + delta, 0)
+        with open(path, "w") as f:
+            f.write(str(new_score))
+
+        return old_score
+
+    @staticmethod
+    def new_seed(trace: List[MutationStep], cov: List[VerificationError]) -> "Seed":
+        while True:
+            count = len(os.listdir(config.PATH_WORK_FUZZ_SEED_DIR))
+            try:
+                os.makedirs(
+                    os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, str(count)),
+                    exist_ok=False,
+                )
+                seed = Seed(str(count))
+                seed._init_score()
+                seed._save_trace(trace)
+                seed._save_cov(cov)
+                return seed
+            except FileExistsError:
+                pass
 
 
 def _dump_cov_global() -> None:
@@ -51,14 +99,17 @@ def _fuzzing_thread(tid: int) -> None:
     global GLOBAL_COV
     global GLOBAL_FLAG_HALT
 
-    logging.info("[Thread-{}] Fuzzing started".format(tid))
+    # load the mutation points
+    mutation_points = load_mutation_points()
 
-    # preparation
+    # other preparation
     path_instance = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, str(tid))
     path_saw = os.path.join(path_instance, "saw")
     os.makedirs(path_saw, exist_ok=True)
 
     # fuzzing loop
+    logging.info("[Thread-{}] Fuzzing started".format(tid))
+
     while True:
         # decide whether to halt the process
         GLOBAL_LOCK.acquire()
@@ -76,6 +127,7 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     global GLOBAL_COV
     global GLOBAL_FLAG_HALT
 
+    # do a clean-up if requested
     if clean:
         shutil.rmtree(config.PATH_WORK_FUZZ)
         logging.info("Previous fuzzing work cleared out")
@@ -90,6 +142,12 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     os.makedirs(config.PATH_WORK_FUZZ_SURVIVAL_DIR, exist_ok=True)
     os.makedirs(config.PATH_WORK_FUZZ_STATUS_DIR, exist_ok=True)
 
+    # deposit the base seed if needed
+    path_seed_zero = os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, "0")
+    if not os.path.exists(path_seed_zero):
+        # base seed has no errors and no mutation trace
+        Seed.new_seed([], [])
+
     # prepare the coverage map based on existing seeds
     logging.info(
         "Processing existing fuzzing seeds: {}".format(
@@ -98,8 +156,9 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     )
 
     GLOBAL_COV.clear()
-    for seed in os.listdir(config.PATH_WORK_FUZZ_SEED_DIR):
-        for entry in _load_seed_cov(seed):
+    for item in os.listdir(config.PATH_WORK_FUZZ_SEED_DIR):
+        seed = Seed(item)
+        for entry in seed.load_cov():
             GLOBAL_COV.add(entry)
     _dump_cov_global()
     logging.info(

@@ -5,7 +5,8 @@ LLVM-based functionalities
 import os
 import shutil
 import json
-from typing import List
+from dataclasses import dataclass
+from typing import List, Dict, Any
 
 import config
 from util import cd, execute, envpaths
@@ -30,6 +31,27 @@ def build_bitcode(clean: bool) -> None:
     )
 
 
+@dataclass(frozen=True, eq=True, order=True)
+class MutationPoint(object):
+    rule: str
+    function: str
+    instruction: int
+
+
+@dataclass(frozen=True, eq=True, order=True)
+class MutationStep(object):
+    rule: str
+    function: str
+    instruction: int
+    package: Dict[str, Any]
+
+
+def load_mutation_points() -> List[MutationPoint]:
+    with open(config.PATH_WORK_FUZZ_MUTATION_POINTS) as f:
+        jobj = json.load(f)
+        return [MutationPoint(**item) for item in jobj]
+
+
 def _run_mutation_pass(bc_from: str, bc_into: str, args: List[str]) -> None:
     with cd(config.PATH_BASE):
         with envpaths(os.path.join(config.PATH_DEPS_LLVM, "bin")):
@@ -47,7 +69,7 @@ def _run_mutation_pass(bc_from: str, bc_into: str, args: List[str]) -> None:
             )
 
 
-def mutation_init() -> None:
+def mutation_init() -> List[MutationPoint]:
     os.makedirs(config.PATH_WORK_FUZZ, exist_ok=True)
 
     # we need these high-level verified functions to build a call graph
@@ -67,6 +89,9 @@ def mutation_init() -> None:
             config.PATH_WORK_FUZZ_MUTATION_POINTS,
         ],
     )
+
+    # load the mutation points
+    return load_mutation_points()
 
 
 def mutation_pass_replay(seed: str) -> None:
