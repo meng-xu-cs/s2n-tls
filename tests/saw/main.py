@@ -43,7 +43,9 @@ def main(argv: List[str]) -> int:
     # args: fuzzing
     parser_fuzz = parser_subs.add_parser("fuzz", help="fuzzily mutation testing")
     parser_fuzz.add_argument("--clean", action="store_true")
-    parser_fuzz.add_argument("-j", "--jobs", type=int, default=config.NUM_CORES)
+    parser_fuzz.add_argument(
+        "-j", "--jobs", type=int, default=int(config.NUM_CORES / 4)
+    )
 
     # parse arguments
     args = parser.parse_args(argv)

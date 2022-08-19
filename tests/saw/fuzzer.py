@@ -218,6 +218,8 @@ def _fuzzing_thread(tid: int) -> None:
     os.makedirs(path_saw, exist_ok=True)
     duplicate_workspace(path_wks)
 
+    # other important files
+    path_all_llvm_bc = os.path.join(path_wks, "bitcode", "all_llvm.bc")
     path_mutation_result = os.path.join(path_instance, "mutate_result.json")
 
     # fuzzing loop
@@ -271,15 +273,16 @@ def _fuzzing_thread(tid: int) -> None:
 
             # step 2: actually produce the new mutant
             mutation_pass_replay(
-                base_seed.path_trace, config.PATH_ORIG_BITCODE_ALL_LLVM
+                base_seed.path_trace,
+                path_all_llvm_bc,
             )
             logging.debug("[Thread-{}]   trace replayed".format(tid))
 
             mutation_pass_mutate(
                 mutation_point,
                 path_mutation_result,
-                config.PATH_ORIG_BITCODE_ALL_LLVM,
-                config.PATH_ORIG_BITCODE_ALL_LLVM,
+                path_all_llvm_bc,
+                path_all_llvm_bc,
             )
             with open(path_mutation_result) as f:
                 mutate_result = json.load(f)
