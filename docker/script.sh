@@ -12,6 +12,9 @@ cd deps
 make pass
 cd -
 
+# build the bitcode
+./main.py bitcode
+
 # run the pass
 ./main.py pass init
 
