@@ -79,37 +79,42 @@ def _search_for_error_subgoal_failed(
     result: List[Dict[str, str]] = []
 
     # scan for the stdout file for error patterns
-    pending_error = None
-    for line in lines:
-        line = line.strip()
-
-        # consume the next line after the error message
-        if pending_error is not None:
-            pending_error["details"] = line
-            result.append(pending_error)
-            pending_error = None
-            continue
-
-        # check for error message
+    error_points = {}
+    for i, line in enumerate(lines):
         match = error_pattern.match(line)
         if not match:
             continue
 
-        # this line represents an error
         goal = match.group(1)
         location = match.group(2)
         if location.startswith(wks):
             location = location[len(wks) :]
         message = match.group(3)
 
-        # prepare the partial details
-        pending_error = OrderedDict()
-        pending_error["type"] = "subgoal failed"
-        pending_error["goal"] = goal
-        pending_error["location"] = location
-        pending_error["message"] = message
+        error = OrderedDict()
+        error["type"] = "subgoal failed"
+        error["goal"] = goal
+        error["location"] = location
+        error["message"] = message
+        error_points[i] = error
 
-    assert pending_error is None
+    # proces the error
+    for i, error in error_points.items():
+        error["details"] = lines[i + 1].strip()
+        extra = []
+        if lines[i + 2] == "Details:":
+            offset = 3
+            while i + offset < len(lines):
+                cursor = lines[i + offset]
+                if not cursor.startswith(" "):
+                    break
+
+                extra.append(cursor.strip())
+                offset += 1
+
+        error["extra"] = "\n".join(extra)
+        result.append(error)
+
     return result
 
 
