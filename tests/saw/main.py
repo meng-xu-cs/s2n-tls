@@ -10,7 +10,7 @@ from typing import List
 import config
 from util import enable_coloring_in_logging, envpaths
 from bitcode import build_bitcode, mutation_init, mutation_pass_replay
-from prover import verify_one, verify_all, parse_failure_report
+from prover import verify_one, verify_all, parse_verification_output
 from fuzzer import fuzz_start
 
 
@@ -54,11 +54,9 @@ def main(argv: List[str]) -> int:
     parser_misc_subs = parser_misc.add_subparsers(dest="cmd_misc")
 
     parser_misc_subs_parse_verification_report = parser_misc_subs.add_parser(
-        "parse_verification_report"
+        "parse_verification_output"
     )
-    parser_misc_subs_parse_verification_report.add_argument("item")
-    parser_misc_subs_parse_verification_report.add_argument("wks")
-    parser_misc_subs_parse_verification_report.add_argument("workdir")
+    parser_misc_subs_parse_verification_report.add_argument("base")
 
     # parse arguments
     args = parser.parse_args(argv)
@@ -82,8 +80,8 @@ def main(argv: List[str]) -> int:
     elif args.cmd == "verify":
         if args.input == "ALL":
             errors = verify_all(config.PATH_BASE, config.PATH_WORK_SAW)
-            for item in errors:
-                logging.warning("Verification failed with error\n{}".format(item))
+            for entry in errors:
+                logging.warning("Verification failed with error\n{}".format(entry))
         else:
             if not verify_one(config.PATH_BASE, args.input, config.PATH_WORK_SAW):
                 logging.warning("Verification failed with error\n{}".format(args.input))
@@ -104,9 +102,21 @@ def main(argv: List[str]) -> int:
         fuzz_start(args.clean, args.jobs)
 
     elif args.cmd == "misc":
-        if args.cmd_misc == "parse_verification_report":
-            for item in parse_failure_report(args.item, args.wks, args.workdir):
-                print(json.dumps(asdict(item), indent=4))
+        if args.cmd_misc == "parse_verification_output":
+            if args.base == "BASE":
+                wks = config.PATH_BASE
+                workdir = config.PATH_WORK_SAW
+            else:
+                wks = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, args.base, "wks")
+                workdir = os.path.join(
+                    config.PATH_WORK_FUZZ_THREAD_DIR, args.base, "saw"
+                )
+
+            parsed = parse_verification_output(wks, workdir)
+            for item, errors in parsed.items():
+                print("[{}]".format(item))
+                for entry in errors:
+                    print("  {}".format(json.dumps(asdict(entry), indent=4)))
 
         else:
             parser_misc.print_help()

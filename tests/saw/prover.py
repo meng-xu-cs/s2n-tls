@@ -188,7 +188,7 @@ def _search_for_assertion_failed(lines: List[str]) -> List[Dict[str, str]]:
     return result
 
 
-def parse_failure_report(item: str, wks: str, workdir: str) -> List[VerificationError]:
+def _parse_failure_report(item: str, wks: str, workdir: str) -> List[VerificationError]:
     # load the output file
     file_out = os.path.join(workdir, item + ".out")
     with open(file_out) as f:
@@ -203,6 +203,26 @@ def parse_failure_report(item: str, wks: str, workdir: str) -> List[Verification
 
     # convert them into verification errors
     return [VerificationError(item, entry) for entry in details]
+
+
+def parse_verification_output(
+    wks: str, workdir: str
+) -> Dict[str, List[VerificationError]]:
+    result = {}
+    for entry in os.listdir(workdir):
+        if not entry.endswith(".mark"):
+            continue
+
+        with open(os.path.join(workdir, entry)) as f:
+            if f.readline().strip() == "success":
+                continue
+
+        # found a failure case
+        item, _ = os.path.splitext(entry)
+        errors = _parse_failure_report(item, wks, workdir)
+        result[item] = errors
+
+    return result
 
 
 def verify_one(wks: str, item: str, result_dir: str) -> bool:
@@ -242,7 +262,7 @@ def verify_all(wks: str, workdir: str) -> List[VerificationError]:
     errors = SortedSet()
     for result, script in zip(results, all_saw_scripts):
         if not result:
-            for err in parse_failure_report(script, wks, workdir):
+            for err in _parse_failure_report(script, wks, workdir):
                 errors.add(err)
     return [item for item in errors]
 
