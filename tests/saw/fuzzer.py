@@ -22,16 +22,6 @@ from bitcode import (
 )
 from prover import VerificationError, verify_all
 
-#
-# Global variable shared across the threads
-#
-
-
-GLOBAL_LOCK = Lock()
-GLOBAL_COV: Set[VerificationError] = set()
-GLOBAL_SEEDS: Dict[int, List[str]] = {}
-GLOBAL_FLAG_HALT: bool = False
-
 
 class Seed(object):
     def __init__(self, name: str):
@@ -116,17 +106,102 @@ class Seed(object):
                 pass
 
 
-def _dump_cov_global() -> None:
-    cov_path = os.path.join(config.PATH_WORK_FUZZ_STATUS_DIR, "cov.json")
-    with open(cov_path, "w") as f:
-        jobj = [asdict(item) for item in sorted(GLOBAL_COV)]
-        json.dump(jobj, f, indent=4)
+class GlobalState(object):
+    def __init__(self) -> None:
+        self.lock = Lock()
+        # R/W accesses to the rest requires lock
+        self.cov: Set[VerificationError] = set()
+        self.seeds: Dict[int, List[str]] = {}
+        self.flag_halt = False
+
+    # Check whether the halt flag is set
+    def get_flag_halt(self) -> bool:
+        self.lock.acquire()
+        flag = self.flag_halt
+        self.lock.release()
+        return flag
+
+    def set_flag_halt(self) -> None:
+        self.lock.acquire()
+        self.flag_halt = True
+        self.lock.release()
+
+    # This function must be called under lock
+    def _update_seed_score(self, seed: Seed, delta: int) -> None:
+        old_score = seed.load_and_adjust_score(delta)
+        self.seeds[old_score].remove(seed.name)
+        if len(self.seeds[old_score]) == 0:
+            del self.seeds[old_score]
+
+        new_score = old_score + delta
+        if new_score not in self.seeds:
+            self.seeds[new_score] = []
+        self.seeds[new_score].append(seed.name)
+
+    # Generate the next seed based on priority
+    def next_seed(self) -> Seed:
+        self.lock.acquire()
+
+        # grab the seed
+        top_score = sorted(self.seeds.keys(), reverse=True)[0]
+        choice = random.choice(self.seeds[top_score])
+        seed = Seed(choice)
+
+        # lower its score
+        self._update_seed_score(seed, -1)
+
+        self.lock.release()
+        return seed
+
+    # Update the coverage map, return number of new entries added
+    def update_coverage(self, new_cov: List[VerificationError]) -> int:
+        addition = 0
+
+        self.lock.acquire()
+        for entry in new_cov:
+            if entry not in self.cov:
+                self.cov.add(entry)
+                addition += 1
+        self.lock.release()
+
+        return addition
+
+    # Update the seed score in the priority queue
+    def update_seed_score(self, seed: Seed, delta: int) -> None:
+        self.lock.acquire()
+        self._update_seed_score(seed, delta)
+        self.lock.release()
+
+    # Add a new seed to the priority queue
+    def add_seed(self, seed: Seed) -> None:
+        self.lock.acquire()
+        score = seed.load_score()
+        if score not in self.seeds:
+            self.seeds[score] = []
+        self.seeds[score].append(seed.name)
+        self.lock.release()
+
+    # Dump the global coverage map
+    def dump_cov(self) -> None:
+        self.lock.acquire()
+
+        cov_path = os.path.join(config.PATH_WORK_FUZZ_STATUS_DIR, "cov.json")
+        with open(cov_path, "w") as f:
+            jobj = [asdict(item) for item in sorted(self.cov)]
+            json.dump(jobj, f, indent=4)
+
+        self.lock.release()
+
+
+#
+# Global variable shared across the threads
+#
+
+GLOBAL_STATE = GlobalState()
 
 
 def _fuzzing_thread(tid: int) -> None:
-    global GLOBAL_LOCK
-    global GLOBAL_COV
-    global GLOBAL_FLAG_HALT
+    global GLOBAL_STATE
 
     # load the mutation points
     mutation_points = load_mutation_points()
@@ -134,46 +209,31 @@ def _fuzzing_thread(tid: int) -> None:
     # workspace preparation
     path_instance = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, str(tid))
     os.makedirs(path_instance, exist_ok=True)
-
-    path_mutation_result = os.path.join(path_instance, "mutate_result.json")
-
     path_saw = os.path.join(path_instance, "saw")
     os.makedirs(path_saw, exist_ok=True)
+    path_mutation_result = os.path.join(path_instance, "mutate_result.json")
 
     # fuzzing loop
     logging.info("[Thread-{}] Fuzzing started".format(tid))
 
     while True:
         # decide whether to halt the process
-        GLOBAL_LOCK.acquire()
-        should_halt = GLOBAL_FLAG_HALT
-        GLOBAL_LOCK.release()
-        if should_halt:
+        if GLOBAL_STATE.get_flag_halt():
             break
 
         # populate a seed based on priority
-        GLOBAL_LOCK.acquire()
-        score = sorted(GLOBAL_SEEDS.keys(), reverse=True)[0]
-        choice = random.choice(GLOBAL_SEEDS[score])
-        base_seed = Seed(choice)
-
-        # decrement the score after pulling it out from the pool
-        base_seed.load_and_adjust_score(-1)
-        GLOBAL_SEEDS[score].remove(choice)
-        if (score - 1) not in GLOBAL_SEEDS:
-            GLOBAL_SEEDS[score - 1] = []
-        GLOBAL_SEEDS[score - 1].append(choice)
-
-        GLOBAL_LOCK.release()
-
-        logging.debug(
-            "[Thread-{}] Mutating based on seed {} with score {}".format(
-                tid, base_seed.name, score
-            )
-        )
+        base_seed = GLOBAL_STATE.next_seed()
 
         old_cov = base_seed.load_cov()
         old_trace = base_seed.load_trace()
+        old_score = base_seed.load_score()
+        logging.debug(
+            "[Thread-{}] Mutating based on seed {} with score {}".format(
+                tid, base_seed.name, old_score
+            )
+        )
+
+        # prepare for the new trace to be the same as old trace
         new_trace = [step for step in old_trace]
 
         # choose a mutation point that does not appear in previous trace
@@ -238,29 +298,16 @@ def _fuzzing_thread(tid: int) -> None:
                 # reward the seed for each error eliminated
                 novelty_marks += 1
 
-        GLOBAL_LOCK.acquire()
-        for entry in new_cov:
-            if entry not in GLOBAL_COV:
-                # reward the seed for each new error discovered
-                GLOBAL_COV.add(entry)
-                novelty_marks += 1
-        GLOBAL_LOCK.release()
+        # reward the seed for each new error discovered
+        novelty_marks += GLOBAL_STATE.update_coverage(new_cov)
 
         # this is a boring case, ignore it
         if novelty_marks == 0:
             continue
 
         # adjust the score for the base seed
-        GLOBAL_LOCK.acquire()
-
         # add 2 because we previously deducted one point from it
-        prev_score = base_seed.load_and_adjust_score(2)
-        GLOBAL_SEEDS[prev_score].remove(base_seed.name)
-        if (prev_score + 2) not in GLOBAL_SEEDS:
-            GLOBAL_SEEDS[prev_score + 2] = []
-        GLOBAL_SEEDS[prev_score + 2].append(base_seed.name)
-
-        GLOBAL_LOCK.release()
+        GLOBAL_STATE.update_seed_score(base_seed, 2)
 
         # in case we found a surviving mutant
         if len(new_cov) == 0:
@@ -268,25 +315,16 @@ def _fuzzing_thread(tid: int) -> None:
             Seed.new_survival(new_trace, new_cov)
             continue
 
-        # create a new seed
+        # create a new seed and register to the seed queue
         new_seed = Seed.new_seed(new_trace, new_cov, novelty_marks)
-        new_score = new_seed.load_score()
-
-        # add the new seed to queue
-        GLOBAL_LOCK.acquire()
-        if new_score not in GLOBAL_SEEDS:
-            GLOBAL_SEEDS[new_score] = []
-        GLOBAL_SEEDS[new_score].append(new_seed.name)
-        GLOBAL_LOCK.release()
+        GLOBAL_STATE.add_seed(new_seed)
 
     # on halt
     logging.info("[Thread-{}] Fuzzing stopped".format(tid))
 
 
 def fuzz_start(clean: bool, num_threads: int) -> None:
-    global GLOBAL_LOCK
-    global GLOBAL_COV
-    global GLOBAL_FLAG_HALT
+    global GLOBAL_STATE
 
     # do a clean-up if requested
     if clean:
@@ -316,24 +354,18 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
         )
     )
 
-    GLOBAL_COV.clear()
-    GLOBAL_SEEDS.clear()
+    num_cov_entries = 0
     for item in os.listdir(config.PATH_WORK_FUZZ_SEED_DIR):
         seed = Seed(item)
-        score = seed.load_score()
-        if score not in GLOBAL_SEEDS:
-            GLOBAL_SEEDS[score] = []
-        GLOBAL_SEEDS[score].append(seed.name)
-        for entry in seed.load_cov():
-            GLOBAL_COV.add(entry)
+        GLOBAL_STATE.add_seed(seed)
+        num_cov_entries += GLOBAL_STATE.update_coverage(seed.load_cov())
 
-    _dump_cov_global()
+    GLOBAL_STATE.dump_cov()
     logging.info(
-        "Number of entries in the global coverage map: {}".format(len(GLOBAL_COV))
+        "Number of entries in the global coverage map: {}".format(num_cov_entries)
     )
 
     # prepare the threads
-    GLOBAL_FLAG_HALT = False
     threads = [
         Thread(target=_fuzzing_thread, args=(i,), daemon=True)
         for i in range(num_threads)
@@ -349,15 +381,11 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
         while True:
             time.sleep(60)
             # periodically refresh the coverage map
-            GLOBAL_LOCK.acquire()
-            _dump_cov_global()
-            GLOBAL_LOCK.release()
+            GLOBAL_STATE.dump_cov()
             logging.info("Global coverage dump refreshed")
     except KeyboardInterrupt:
         # halt all threads
-        GLOBAL_LOCK.acquire()
-        GLOBAL_FLAG_HALT = True
-        GLOBAL_LOCK.release()
+        GLOBAL_STATE.set_flag_halt()
         logging.info("Halt signal sent, waiting for child threads to terminate")
 
     # stop all the threads
