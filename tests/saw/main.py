@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-
+import json
 import os
 import sys
 import logging
 import argparse
+from dataclasses import asdict
 from typing import List
 
 import config
 from util import enable_coloring_in_logging, envpaths
 from bitcode import build_bitcode, mutation_init, mutation_pass_replay
-from prover import verify_one, verify_all
+from prover import verify_one, verify_all, parse_failure_report
 from fuzzer import fuzz_start
 
 
@@ -47,6 +48,17 @@ def main(argv: List[str]) -> int:
     parser_fuzz.add_argument(
         "-j", "--jobs", type=int, default=int(config.NUM_CORES / 2)
     )
+
+    # args: misc
+    parser_misc = parser_subs.add_parser("misc", help="miscellaneous work items")
+    parser_misc_subs = parser_misc.add_subparsers(dest="cmd_misc")
+
+    parser_misc_subs_parse_verification_report = parser_misc_subs.add_parser(
+        "parse_verification_report"
+    )
+    parser_misc_subs_parse_verification_report.add_argument("item")
+    parser_misc_subs_parse_verification_report.add_argument("wks")
+    parser_misc_subs_parse_verification_report.add_argument("workdir")
 
     # parse arguments
     args = parser.parse_args(argv)
@@ -90,6 +102,15 @@ def main(argv: List[str]) -> int:
 
     elif args.cmd == "fuzz":
         fuzz_start(args.clean, args.jobs)
+
+    elif args.cmd == "misc":
+        if args.cmd_misc == "parse_verification_report":
+            for item in parse_failure_report(args.item, args.wks, args.workdir):
+                print(json.dumps(asdict(item), indent=4))
+
+        else:
+            parser_misc.print_help()
+            return -1
 
     else:
         parser.print_help()

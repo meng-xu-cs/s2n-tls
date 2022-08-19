@@ -6,7 +6,8 @@ import os
 import subprocess
 import re
 import shutil
-from typing import List
+from typing import List, Dict
+from collections import OrderedDict
 from dataclasses import dataclass
 
 import config
@@ -64,62 +65,104 @@ def collect_verified_functions() -> List[str]:
 @dataclass(frozen=True, eq=True, order=True)
 class VerificationError(object):
     item: str
-    goal: str
-    location: str
-    message: str
-    details: str
+    details: Dict[str, str]
 
 
-@dataclass
-class VerificationErrorBuilder(object):
-    item: str
-    goal: str
-    location: str
-    message: str
-    details: str
-
-    def build(self) -> VerificationError:
-        return VerificationError(
-            self.item, self.goal, self.location, self.message, self.details
-        )
-
-
-def _parse_failure_report(item: str, wks: str, workdir: str) -> List[VerificationError]:
+def _search_for_error_subgoal_failed(
+    wks: str, lines: List[str]
+) -> List[Dict[str, str]]:
     error_pattern = re.compile(
         r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?): (.+?)$"
     )
 
-    result: List[VerificationError] = []
+    result: List[Dict[str, str]] = []
 
     # scan for the stdout file for error patterns
+    pending_error = None
+    for line in lines:
+        line = line.strip()
+
+        # consume the next line after the error message
+        if pending_error is not None:
+            pending_error["details"] = line
+            result.append(pending_error)
+            pending_error = None
+            continue
+
+        # check for error message
+        match = error_pattern.match(line)
+        if not match:
+            continue
+
+        # this line represents an error
+        goal = match.group(1)
+        location = match.group(2)
+        if location.startswith(wks):
+            location = location[len(wks) :]
+        message = match.group(3)
+
+        # prepare the partial details
+        pending_error = OrderedDict()
+        pending_error["type"] = "subgoal failed"
+        pending_error["goal"] = goal
+        pending_error["location"] = location
+        pending_error["message"] = message
+
+    assert pending_error is None
+    return result
+
+
+def _search_for_symexec_failed(lines: List[str]) -> List[Dict[str, str]]:
+    result: List[Dict[str, str]] = []
+
+    # scan for the stdout file for error patterns
+    error_points = []
+    for i, line in enumerate(lines):
+        if line == "Symbolic execution failed.":
+            error_points.append(i)
+
+    # parse each error points
+    for i in error_points:
+        error = OrderedDict()
+        error["type"] = "symbolic execution failed"
+        error["reason"] = lines[i + 1].strip()
+        error["location"] = lines[i + 2].strip()
+        error["details"] = lines[i + 3].strip()
+
+        assert lines[i + 4].strip() == "Details:"
+        extra = []
+
+        offset = 5
+        while True:
+            if i + offset >= len(lines):
+                break
+
+            cursor = lines[i + offset]
+            if not cursor.startswith(" "):
+                break
+
+            extra.append(cursor.strip())
+            offset += 1
+        error["extra"] = "\n".join(extra)
+        result.append(error)
+
+    return result
+
+
+def parse_failure_report(item: str, wks: str, workdir: str) -> List[VerificationError]:
+    # load the output file
     file_out = os.path.join(workdir, item + ".out")
     with open(file_out) as f:
-        pending_error = None
-        for line in f:
-            line = line.strip()
+        lines = [line.rstrip() for line in f]
 
-            # consume the next line after the error message
-            if pending_error is not None:
-                pending_error.details = line
-                result.append(pending_error.build())
-                pending_error = None
-                continue
+    # scan for the stdout file for error patterns
+    details: List[Dict[str, str]] = []
+    details.extend(_search_for_error_subgoal_failed(wks, lines))
+    details.extend(_search_for_symexec_failed(lines))
+    assert len(details) != 0
 
-            # check for error message
-            match = error_pattern.match(line)
-            if not match:
-                continue
-
-            # this line represents an error
-            location = match.group(2)
-            if location.startswith(wks):
-                location = location[len(wks) :]
-            pending_error = VerificationErrorBuilder(
-                item, match.group(1), location, match.group(3), ""
-            )
-
-    assert len(result) != 0
-    return result
+    # convert them into verification errors
+    return [VerificationError(item, entry) for entry in details]
 
 
 def verify_one(wks: str, item: str, result_dir: str) -> bool:
@@ -159,7 +202,7 @@ def verify_all(wks: str, workdir: str) -> List[VerificationError]:
     errors = set()
     for result, script in zip(results, all_saw_scripts):
         if not result:
-            for err in _parse_failure_report(script, wks, workdir):
+            for err in parse_failure_report(script, wks, workdir):
                 errors.add(err)
     return sorted(errors)
 
