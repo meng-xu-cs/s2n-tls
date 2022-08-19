@@ -304,6 +304,11 @@ def _fuzzing_thread(tid: int) -> None:
 
         # run the verification
         new_cov = verify_all(path_wks, path_saw)
+        logging.debug(
+            "[Thread-{}]   verification completed with {} errors".format(
+                tid, len(new_cov)
+            )
+        )
 
         # test for novelty of the seed
         novelty_marks = 0
@@ -311,9 +316,16 @@ def _fuzzing_thread(tid: int) -> None:
             if entry not in new_cov:
                 # reward the seed for each error eliminated
                 novelty_marks += 1
+        logging.debug(
+            "[Thread-{}]   previous errors removed: {}".format(tid, novelty_marks)
+        )
 
         # reward the seed for each new error discovered
-        novelty_marks += GLOBAL_STATE.update_coverage(new_cov)
+        cov_addition = GLOBAL_STATE.update_coverage(new_cov)
+        logging.debug(
+            "[Thread-{}]   new errors discovered: {}".format(tid, cov_addition)
+        )
+        novelty_marks += cov_addition
 
         # this is a boring case, ignore it
         if novelty_marks == 0:
@@ -329,9 +341,10 @@ def _fuzzing_thread(tid: int) -> None:
             Seed.new_survival(new_trace, new_cov)
             continue
 
-        # create a new seed and register to the seed queue
+        # create a new seed and register it to the seed queue
         new_seed = Seed.new_seed(new_trace, new_cov, novelty_marks)
         GLOBAL_STATE.add_seed(new_seed)
+        logging.debug("[Thread-{}]   a new seed is added to the seed pool".format(tid))
 
     # on halt
     logging.info("[Thread-{}] Fuzzing stopped".format(tid))
