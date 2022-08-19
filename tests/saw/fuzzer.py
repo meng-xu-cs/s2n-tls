@@ -10,7 +10,7 @@ import time
 import random
 from dataclasses import asdict
 from threading import Thread, Lock
-from typing import List, Set, Dict
+from typing import List, Set, Dict, Tuple
 
 import config
 from bitcode import (
@@ -139,7 +139,7 @@ class GlobalState(object):
         self.seeds[new_score].append(seed.name)
 
     # Generate the next seed based on priority
-    def next_seed(self) -> Seed:
+    def next_seed(self) -> Tuple[Seed, int]:
         self.lock.acquire()
 
         # grab the seed
@@ -151,7 +151,7 @@ class GlobalState(object):
         self._update_seed_score(seed, -1)
 
         self.lock.release()
-        return seed
+        return seed, top_score
 
     # Update the coverage map, return number of new entries added
     def update_coverage(self, new_cov: List[VerificationError]) -> int:
@@ -231,14 +231,13 @@ def _fuzzing_thread(tid: int) -> None:
             break
 
         # populate a seed based on priority
-        base_seed = GLOBAL_STATE.next_seed()
+        base_seed, base_score = GLOBAL_STATE.next_seed()
 
         old_cov = base_seed.load_cov()
         old_trace = base_seed.load_trace()
-        old_score = base_seed.load_score()
         logging.debug(
             "[Thread-{}] Mutating based on seed {} with score {}".format(
-                tid, base_seed.name, old_score
+                tid, base_seed.name, base_score
             )
         )
 
