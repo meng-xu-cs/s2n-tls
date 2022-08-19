@@ -9,6 +9,7 @@ import shutil
 from typing import List, Dict
 from collections import OrderedDict
 from dataclasses import dataclass
+from sortedcontainers import SortedSet  # type: ignore
 
 import config
 from util import cd, execute3
@@ -233,12 +234,12 @@ def verify_all(wks: str, workdir: str) -> List[VerificationError]:
     results = [verify_one(wks, script, workdir) for script in all_saw_scripts]
 
     # collect the failure cases
-    errors = set()
+    errors = SortedSet()
     for result, script in zip(results, all_saw_scripts):
         if not result:
             for err in parse_failure_report(script, wks, workdir):
                 errors.add(err)
-    return sorted(errors)
+    return [item for item in errors]
 
 
 def duplicate_workspace(wks: str) -> None:

@@ -11,6 +11,7 @@ import random
 from dataclasses import asdict
 from threading import Thread, Lock
 from typing import List, Set, Dict, Tuple
+from sortedcontainers import SortedSet  # type: ignore
 
 import config
 from bitcode import (
@@ -110,7 +111,7 @@ class GlobalState(object):
     def __init__(self) -> None:
         self.lock = Lock()
         # R/W accesses to the rest requires lock
-        self.cov: Set[VerificationError] = set()
+        self.cov: Set[VerificationError] = SortedSet()
         self.seeds: Dict[int, List[str]] = {}
         self.flag_halt = False
 
@@ -187,7 +188,7 @@ class GlobalState(object):
 
         cov_path = os.path.join(config.PATH_WORK_FUZZ_STATUS_DIR, "cov.json")
         with open(cov_path, "w") as f:
-            jobj = [asdict(item) for item in sorted(self.cov)]
+            jobj = [asdict(item) for item in self.cov]
             json.dump(jobj, f, indent=4)
 
         self.lock.release()
