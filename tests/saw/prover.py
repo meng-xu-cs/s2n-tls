@@ -6,7 +6,7 @@ import os
 import subprocess
 import re
 import shutil
-from typing import List, Dict
+from typing import List, Dict, Union
 from collections import OrderedDict
 from dataclasses import dataclass
 from sortedcontainers import SortedSet  # type: ignore
@@ -66,17 +66,17 @@ def collect_verified_functions() -> List[str]:
 @dataclass(frozen=True, eq=True, order=True)
 class VerificationError(object):
     item: str
-    details: Dict[str, str]
+    details: Dict[str, Union[str, List[str]]]
 
 
 def _search_for_error_subgoal_failed(
     wks: str, lines: List[str]
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Union[str, List[str]]]]:
     error_pattern = re.compile(
         r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?): (.+?)$"
     )
 
-    result: List[Dict[str, str]] = []
+    result: List[Dict[str, Union[str, List[str]]]] = []
 
     # scan for the stdout file for error patterns
     error_points = {}
@@ -91,7 +91,8 @@ def _search_for_error_subgoal_failed(
             location = location[len(wks) :]
         message = match.group(3)
 
-        error = OrderedDict()
+        # prepare base message
+        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
         error["type"] = "subgoal failed"
         error["goal"] = goal
         error["location"] = location
@@ -100,26 +101,31 @@ def _search_for_error_subgoal_failed(
 
     # proces the error
     for i, error in error_points.items():
+        # look for extra details
         error["details"] = lines[i + 1].strip()
         extra = []
+
         if lines[i + 2] == "Details:":
             offset = 3
             while i + offset < len(lines):
                 cursor = lines[i + offset]
                 if not cursor.startswith(" "):
                     break
-
                 extra.append(cursor.strip())
                 offset += 1
 
-        error["extra"] = "\n".join(extra)
+        error["extra"] = extra
+
+        # done with the error parseing
         result.append(error)
 
     return result
 
 
-def _search_for_symexec_failed(lines: List[str]) -> List[Dict[str, str]]:
-    result: List[Dict[str, str]] = []
+def _search_for_symexec_failed(
+    lines: List[str],
+) -> List[Dict[str, Union[str, List[str]]]]:
+    result: List[Dict[str, Union[str, List[str]]]] = []
 
     # scan for the stdout file for error patterns
     error_points = []
@@ -129,37 +135,37 @@ def _search_for_symexec_failed(lines: List[str]) -> List[Dict[str, str]]:
 
     # parse each error points
     for i in error_points:
-        error = OrderedDict()
+        # base message
+        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
         error["type"] = "symbolic execution failed"
         error["reason"] = lines[i + 1].strip()
         error["location"] = lines[i + 2].strip()
         error["details"] = lines[i + 3].strip()
 
+        # look for extra details
         assert lines[i + 4].strip() == "Details:"
         extra = []
 
         offset = 5
-        while True:
-            if i + offset >= len(lines):
-                break
-
+        while i + offset < len(lines):
             cursor = lines[i + offset]
             if not cursor.startswith(" "):
                 break
-
             extra.append(cursor.strip())
             offset += 1
 
-        error["extra"] = "\n".join(extra)
+        error["extra"] = extra
         result.append(error)
 
     return result
 
 
-def _search_for_assertion_failed(lines: List[str]) -> List[Dict[str, str]]:
+def _search_for_assertion_failed(
+    lines: List[str],
+) -> List[Dict[str, Union[str, List[str]]]]:
     error_pattern = re.compile(r"^\s\sAssertion made at: (.+?)$")
 
-    result: List[Dict[str, str]] = []
+    result: List[Dict[str, Union[str, List[str]]]] = []
 
     # scan for the stdout file for error patterns
     error_points = {}
@@ -176,14 +182,55 @@ def _search_for_assertion_failed(lines: List[str]) -> List[Dict[str, str]]:
             if cursor == "at " + location:
                 message = lines[i - offset + 1]
 
-                error = OrderedDict()
+                error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
                 error["type"] = "assertion failed"
                 error["location"] = location
                 error["message"] = message
                 result.append(error)
-
                 break
+
             offset += 1
+
+    return result
+
+
+def _search_for_prover_unknown(
+    wks: str, lines: List[str]
+) -> List[Dict[str, Union[str, List[str]]]]:
+    trace_pattern = re.compile(r"^\"(.*?)\" \((.*?)\)$")
+
+    result: List[Dict[str, Union[str, List[str]]]] = []
+
+    # scan for the stdout file for error patterns
+    error_points = []
+    for i, line in enumerate(lines):
+        if line == "Prover returned Unknown":
+            error_points.append(i)
+
+    # parse each error points
+    for i in error_points:
+        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error["type"] = "prover unknown"
+
+        trace = []
+        offset = 1
+        while i >= offset:
+            cursor = lines[i - offset].strip()
+            if cursor.endswith("Stack trace:"):
+                break
+
+            match = trace_pattern.match(cursor)
+            assert match
+            function = match.group(1)
+            location = match.group(2)
+            if location.startswith(wks):
+                location = location[len(wks) :]
+
+            trace.append("{} @ {}".format(function, location))
+            offset += 1
+
+        error["trace"] = trace
+        result.append(error)
 
     return result
 
@@ -195,10 +242,11 @@ def _parse_failure_report(item: str, wks: str, workdir: str) -> List[Verificatio
         lines = [line.rstrip() for line in f]
 
     # scan for the stdout file for error patterns
-    details: List[Dict[str, str]] = []
+    details: List[Dict[str, Union[str, List[str]]]] = []
     details.extend(_search_for_error_subgoal_failed(wks, lines))
     details.extend(_search_for_symexec_failed(lines))
     details.extend(_search_for_assertion_failed(lines))
+    details.extend(_search_for_prover_unknown(wks, lines))
     assert len(details) != 0
 
     # convert them into verification errors
