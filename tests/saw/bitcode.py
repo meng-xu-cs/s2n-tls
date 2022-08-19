@@ -20,7 +20,7 @@ def build_bitcode(clean: bool) -> None:
 
     # run the target, with LLVM binaries
     with cd(config.PATH_BASE):
-        execute(["make", "bitcode/all_llvm.bc"])
+        execute(["make", "-j", str(config.NUM_CORES), "bitcode/all_llvm.bc"])
 
     # save a copy of the generated bitcode
     os.makedirs(config.PATH_WORK_BITCODE, exist_ok=True)
