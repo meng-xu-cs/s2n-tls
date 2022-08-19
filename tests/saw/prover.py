@@ -10,7 +10,7 @@ from typing import List
 from dataclasses import dataclass
 
 import config
-from util import cd, execute3, envpaths
+from util import cd, execute3
 
 #
 # Preparation
@@ -126,16 +126,15 @@ def verify_one(wks: str, item: str, result_dir: str) -> bool:
     file_log = os.path.join(result_dir, item + ".log")
 
     with cd(wks):
-        with envpaths(os.path.join(config.PATH_DEPS_SAW, "bin")):
-            try:
-                execute3(
-                    ["saw", "-v", "debug", "-s", file_log, "-f", "json", item],
-                    pout=file_out,
-                    perr=file_err,
-                )
-                return True
-            except subprocess.SubprocessError:
-                return False
+        try:
+            execute3(
+                ["saw", "-v", "debug", "-s", file_log, "-f", "json", item],
+                pout=file_out,
+                perr=file_err,
+            )
+            return True
+        except subprocess.SubprocessError:
+            return False
 
 
 def verify_all(wks: str, workdir: str) -> List[VerificationError]:

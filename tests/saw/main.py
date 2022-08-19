@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import logging
 import argparse
 from typing import List
 
 import config
-from util import enable_coloring_in_logging
+from util import enable_coloring_in_logging, envpaths
 from bitcode import build_bitcode, mutation_init, mutation_pass_replay
 from prover import verify_one, verify_all
 from fuzzer import fuzz_start
@@ -98,4 +99,8 @@ def main(argv: List[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    with envpaths(
+        os.path.join(config.PATH_DEPS_SAW, "bin"),
+        os.path.join(config.PATH_DEPS_LLVM, "bin"),
+    ):
+        sys.exit(main(sys.argv[1:]))

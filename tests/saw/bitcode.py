@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any
 
 import config
-from util import cd, execute, envpaths
+from util import cd, execute
 from prover import collect_verified_functions
 
 
@@ -20,8 +20,7 @@ def build_bitcode(clean: bool) -> None:
 
     # run the target, with LLVM binaries
     with cd(config.PATH_BASE):
-        with envpaths(os.path.join(config.PATH_DEPS_LLVM, "bin")):
-            execute(["make", "bitcode/all_llvm.bc"])
+        execute(["make", "bitcode/all_llvm.bc"])
 
     # save a copy of the generated bitcode
     os.makedirs(config.PATH_WORK_BITCODE, exist_ok=True)
@@ -54,19 +53,18 @@ def load_mutation_points() -> List[MutationPoint]:
 
 def _run_mutation_pass(bc_from: str, bc_into: str, args: List[str]) -> None:
     with cd(config.PATH_BASE):
-        with envpaths(os.path.join(config.PATH_DEPS_LLVM, "bin")):
-            execute(
-                [
-                    "opt",
-                    "-load",
-                    config.PATH_DEPS_PASS_LIB,
-                    "-mutest",
-                    "-o",
-                    bc_into,
-                    bc_from,
-                    *args,
-                ]
-            )
+        execute(
+            [
+                "opt",
+                "-load",
+                config.PATH_DEPS_PASS_LIB,
+                "-mutest",
+                "-o",
+                bc_into,
+                bc_from,
+                *args,
+            ]
+        )
 
 
 def mutation_init() -> List[MutationPoint]:
