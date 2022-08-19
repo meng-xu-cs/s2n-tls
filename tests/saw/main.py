@@ -43,7 +43,7 @@ def main(argv: List[str]) -> int:
     # args: fuzzing
     parser_fuzz = parser_subs.add_parser("fuzz", help="fuzzily mutation testing")
     parser_fuzz.add_argument("--clean", action="store_true")
-    parser_fuzz.add_argument("-j", "--jobs", type=int, default=1)
+    parser_fuzz.add_argument("-j", "--jobs", type=int, default=config.NUM_CORES)
 
     # parse arguments
     args = parser.parse_args(argv)
@@ -86,9 +86,6 @@ def main(argv: List[str]) -> int:
             return -1
 
     elif args.cmd == "fuzz":
-        # TODO (cannot run in parallel now)
-        if args.jobs != 1:
-            raise RuntimeError("Unable to run in parallel as of now")
         fuzz_start(args.clean, args.jobs)
 
     else:
