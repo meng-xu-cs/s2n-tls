@@ -10,8 +10,7 @@ import time
 import random
 from dataclasses import asdict
 from threading import Thread, Lock
-from typing import List, Set, Dict, Tuple
-from sortedcontainers import SortedSet  # type: ignore
+from typing import List, Dict, Tuple
 
 import config
 from bitcode import (
@@ -111,7 +110,7 @@ class GlobalState(object):
     def __init__(self) -> None:
         self.lock = Lock()
         # R/W accesses to the rest requires lock
-        self.cov: Set[VerificationError] = SortedSet()
+        self.cov: List[VerificationError] = []
         self.seeds: Dict[int, List[str]] = {}
         self.flag_halt = False
 
@@ -156,15 +155,18 @@ class GlobalState(object):
 
     # Update the coverage map, return number of new entries added
     def update_coverage(self, new_cov: List[VerificationError]) -> int:
-        addition = 0
-
         self.lock.acquire()
+
+        addition = 0
         for entry in new_cov:
             if entry not in self.cov:
-                self.cov.add(entry)
+                self.cov.append(entry)
                 addition += 1
-        self.lock.release()
 
+        if addition != 0:
+            self.cov.sort()
+
+        self.lock.release()
         return addition
 
     # Update the seed score in the priority queue
@@ -188,7 +190,7 @@ class GlobalState(object):
 
         cov_path = os.path.join(config.PATH_WORK_FUZZ_STATUS_DIR, "cov.json")
         with open(cov_path, "w") as f:
-            jobj = [asdict(item) for item in self.cov]
+            jobj = [asdict(item) for item in sorted(self.cov)]
             json.dump(jobj, f, indent=4)
 
         self.lock.release()
