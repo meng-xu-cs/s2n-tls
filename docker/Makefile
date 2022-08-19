@@ -29,7 +29,7 @@ once:
 		$(tag)
 
 script:
-	@docker run --rm \
+	@docker run \
 		-it \
 		$(tag) \
 		bash /s2n-tls/docker/script.sh
