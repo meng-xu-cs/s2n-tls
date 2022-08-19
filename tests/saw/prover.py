@@ -5,6 +5,7 @@ SAW-related functionalities
 import os
 import subprocess
 import re
+import shutil
 from typing import List
 from dataclasses import dataclass
 
@@ -118,13 +119,13 @@ def _parse_failure_report(item: str, workdir: str) -> List[VerificationError]:
     return result
 
 
-def verify_one(item: str, workdir: str) -> bool:
-    os.makedirs(os.path.dirname(workdir), exist_ok=True)
-    file_out = os.path.join(workdir, item + ".out")
-    file_err = os.path.join(workdir, item + ".err")
-    file_log = os.path.join(workdir, item + ".log")
+def verify_one(wks: str, item: str, result_dir: str) -> bool:
+    os.makedirs(os.path.dirname(result_dir), exist_ok=True)
+    file_out = os.path.join(result_dir, item + ".out")
+    file_err = os.path.join(result_dir, item + ".err")
+    file_log = os.path.join(result_dir, item + ".log")
 
-    with cd(config.PATH_BASE):
+    with cd(wks):
         with envpaths(os.path.join(config.PATH_DEPS_SAW, "bin")):
             try:
                 execute3(
@@ -137,10 +138,10 @@ def verify_one(item: str, workdir: str) -> bool:
                 return False
 
 
-def verify_all(workdir: str) -> List[VerificationError]:
+def verify_all(wks: str, workdir: str) -> List[VerificationError]:
     # run the verification
     all_saw_scripts = _collect_saw_scripts()
-    results = [verify_one(script, workdir) for script in all_saw_scripts]
+    results = [verify_one(wks, script, workdir) for script in all_saw_scripts]
 
     # collect the failure cases
     errors = set()
@@ -149,3 +150,19 @@ def verify_all(workdir: str) -> List[VerificationError]:
             for err in _parse_failure_report(script, workdir):
                 errors.add(err)
     return sorted(errors)
+
+
+def duplicate_workspace(wks: str) -> None:
+    # create an empty bitcode dir
+    os.makedirs(os.path.join(wks, "bitcode"), exist_ok=True)
+
+    # copy over top-level SAW files
+    for item in os.listdir(config.PATH_BASE):
+        if item.endswith(".saw"):
+            shutil.copyfile(
+                os.path.join(config.PATH_BASE, item), os.path.join(wks, item)
+            )
+
+    # copy over important directories
+    for item in ["spec", "HMAC"]:
+        shutil.copytree(os.path.join(config.PATH_BASE, item), os.path.join(wks, item))

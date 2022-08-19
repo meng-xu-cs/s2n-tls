@@ -66,11 +66,11 @@ def main(argv: List[str]) -> int:
 
     elif args.cmd == "verify":
         if args.input == "ALL":
-            errors = verify_all(config.PATH_WORK_SAW)
+            errors = verify_all(config.PATH_BASE, config.PATH_WORK_SAW)
             for item in errors:
                 logging.warning("Verification failed with error\n{}".format(item))
         else:
-            if not verify_one(args.input, config.PATH_WORK_SAW):
+            if not verify_one(config.PATH_BASE, args.input, config.PATH_WORK_SAW):
                 logging.warning("Verification failed with error\n{}".format(args.input))
 
     elif args.cmd == "pass":
@@ -79,7 +79,7 @@ def main(argv: List[str]) -> int:
             logging.info("Mutation points collected: {}".format(len(mutation_points)))
 
         elif args.cmd_pass == "replay":
-            mutation_pass_replay(args.input)
+            mutation_pass_replay(args.input, config.PATH_ORIG_BITCODE_ALL_LLVM)
 
         else:
             parser_pass.print_help()

@@ -20,7 +20,7 @@ from bitcode import (
     mutation_pass_mutate,
     load_mutation_points,
 )
-from prover import VerificationError, verify_all
+from prover import VerificationError, verify_all, duplicate_workspace
 
 
 class Seed(object):
@@ -209,8 +209,15 @@ def _fuzzing_thread(tid: int) -> None:
     # workspace preparation
     path_instance = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, str(tid))
     os.makedirs(path_instance, exist_ok=True)
+
     path_saw = os.path.join(path_instance, "saw")
     os.makedirs(path_saw, exist_ok=True)
+
+    # copy over the related files for verification
+    path_wks = os.path.join(path_instance, "wks")
+    os.makedirs(path_saw, exist_ok=True)
+    duplicate_workspace(path_wks)
+
     path_mutation_result = os.path.join(path_instance, "mutate_result.json")
 
     # fuzzing loop
@@ -263,10 +270,17 @@ def _fuzzing_thread(tid: int) -> None:
             )
 
             # step 2: actually produce the new mutant
-            mutation_pass_replay(base_seed.path_trace)
+            mutation_pass_replay(
+                base_seed.path_trace, config.PATH_ORIG_BITCODE_ALL_LLVM
+            )
             logging.debug("[Thread-{}]   trace replayed".format(tid))
 
-            mutation_pass_mutate(mutation_point, path_mutation_result)
+            mutation_pass_mutate(
+                mutation_point,
+                path_mutation_result,
+                config.PATH_ORIG_BITCODE_ALL_LLVM,
+                config.PATH_ORIG_BITCODE_ALL_LLVM,
+            )
             with open(path_mutation_result) as f:
                 mutate_result = json.load(f)
 
@@ -289,7 +303,7 @@ def _fuzzing_thread(tid: int) -> None:
         assert len(new_trace) - len(old_trace) == 1
 
         # run the verification
-        new_cov = verify_all(path_saw)
+        new_cov = verify_all(path_wks, path_saw)
 
         # test for novelty of the seed
         novelty_marks = 0

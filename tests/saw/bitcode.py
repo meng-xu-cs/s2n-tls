@@ -94,10 +94,10 @@ def mutation_init() -> List[MutationPoint]:
     return load_mutation_points()
 
 
-def mutation_pass_replay(trace: str) -> None:
+def mutation_pass_replay(trace: str, bc_into: str) -> None:
     _run_mutation_pass(
         config.PATH_WORK_BITCODE_ALL_LLVM,
-        config.PATH_ORIG_BITCODE_ALL_LLVM,
+        bc_into,
         [
             "replay",
             "-mutest-input",
@@ -106,10 +106,12 @@ def mutation_pass_replay(trace: str) -> None:
     )
 
 
-def mutation_pass_mutate(point: MutationPoint, output: str) -> None:
+def mutation_pass_mutate(
+    point: MutationPoint, output: str, bc_from: str, bc_into: str
+) -> None:
     _run_mutation_pass(
-        config.PATH_ORIG_BITCODE_ALL_LLVM,
-        config.PATH_ORIG_BITCODE_ALL_LLVM,
+        bc_from,
+        bc_into,
         [
             "mutate",
             "-mutest-target-rule",
