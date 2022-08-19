@@ -84,7 +84,7 @@ class VerificationErrorBuilder(object):
         )
 
 
-def _parse_failure_report(item: str, workdir: str) -> List[VerificationError]:
+def _parse_failure_report(item: str, wks: str, workdir: str) -> List[VerificationError]:
     error_pattern = re.compile(
         r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?): (.+?)$"
     )
@@ -111,8 +111,11 @@ def _parse_failure_report(item: str, workdir: str) -> List[VerificationError]:
                 continue
 
             # this line represents an error
+            location = match.group(2)
+            if location.startswith(wks):
+                location = location[len(wks) :]
             pending_error = VerificationErrorBuilder(
-                item, match.group(1), match.group(2), match.group(3), ""
+                item, match.group(1), location, match.group(3), ""
             )
 
     assert len(result) != 0
@@ -124,6 +127,7 @@ def verify_one(wks: str, item: str, result_dir: str) -> bool:
     file_out = os.path.join(result_dir, item + ".out")
     file_err = os.path.join(result_dir, item + ".err")
     file_log = os.path.join(result_dir, item + ".log")
+    file_mark = os.path.join(result_dir, item + ".mark")
 
     with cd(wks):
         try:
@@ -132,9 +136,18 @@ def verify_one(wks: str, item: str, result_dir: str) -> bool:
                 pout=file_out,
                 perr=file_err,
             )
-            return True
-        except subprocess.SubprocessError:
-            return False
+            result = True
+            message = "success"
+
+        except subprocess.SubprocessError as ex:
+            result = False
+            message = str(ex)
+
+        # dump the execution status
+        with open(file_mark, "w") as f:
+            f.write(message)
+
+        return result
 
 
 def verify_all(wks: str, workdir: str) -> List[VerificationError]:
@@ -146,7 +159,7 @@ def verify_all(wks: str, workdir: str) -> List[VerificationError]:
     errors = set()
     for result, script in zip(results, all_saw_scripts):
         if not result:
-            for err in _parse_failure_report(script, workdir):
+            for err in _parse_failure_report(script, wks, workdir):
                 errors.add(err)
     return sorted(errors)
 
