@@ -143,8 +143,41 @@ def _search_for_symexec_failed(lines: List[str]) -> List[Dict[str, str]]:
 
             extra.append(cursor.strip())
             offset += 1
+
         error["extra"] = "\n".join(extra)
         result.append(error)
+
+    return result
+
+
+def _search_for_assertion_failed(lines: List[str]) -> List[Dict[str, str]]:
+    error_pattern = re.compile(r"^\s\sAssertion made at: (.+?)$")
+
+    result: List[Dict[str, str]] = []
+
+    # scan for the stdout file for error patterns
+    error_points = {}
+    for i, line in enumerate(lines):
+        match = error_pattern.match(line)
+        if match:
+            error_points[i] = match.group(1)
+
+    # look up until reaching the error message
+    for i, location in error_points.items():
+        offset = 1
+        while i >= offset:
+            cursor = lines[i - offset]
+            if cursor == "at " + location:
+                message = lines[i - offset + 1]
+
+                error = OrderedDict()
+                error["type"] = "assertion failed"
+                error["location"] = location
+                error["message"] = message
+                result.append(error)
+
+                break
+            offset += 1
 
     return result
 
@@ -159,6 +192,7 @@ def parse_failure_report(item: str, wks: str, workdir: str) -> List[Verification
     details: List[Dict[str, str]] = []
     details.extend(_search_for_error_subgoal_failed(wks, lines))
     details.extend(_search_for_symexec_failed(lines))
+    details.extend(_search_for_assertion_failed(lines))
     assert len(details) != 0
 
     # convert them into verification errors
