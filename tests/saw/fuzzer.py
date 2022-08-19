@@ -163,9 +163,6 @@ class GlobalState(object):
                 self.cov.append(entry)
                 addition += 1
 
-        if addition != 0:
-            self.cov.sort()
-
         self.lock.release()
         return addition
 
@@ -190,7 +187,7 @@ class GlobalState(object):
 
         cov_path = os.path.join(config.PATH_WORK_FUZZ_STATUS_DIR, "cov.json")
         with open(cov_path, "w") as f:
-            jobj = [asdict(item) for item in sorted(self.cov)]
+            jobj = [asdict(item) for item in self.cov]
             json.dump(jobj, f, indent=4)
 
         self.lock.release()

@@ -87,7 +87,7 @@ def _search_for_error_subgoal_failed(
         goal = match.group(1)
         location = match.group(2)
         if location.startswith(wks):
-            location = location[len(wks) :]
+            location = location[len(wks):]
         message = match.group(3)
 
         # prepare base message
@@ -223,7 +223,7 @@ def _search_for_prover_unknown(
             function = match.group(1)
             location = match.group(2)
             if location.startswith(wks):
-                location = location[len(wks) :]
+                location = location[len(wks):]
 
             trace.append("{} @ {}".format(function, location))
             offset += 1
@@ -312,8 +312,6 @@ def verify_all(wks: str, workdir: str) -> List[VerificationError]:
             for err in _parse_failure_report(script, wks, workdir):
                 if err not in errors:
                     errors.append(err)
-
-    errors.sort()
     return errors
 
 
