@@ -411,7 +411,13 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
             time.sleep(60)
             # periodically refresh the coverage map
             GLOBAL_STATE.dump_cov()
-            logging.info("Global coverage dump refreshed")
+
+            # check how many threads are still alive
+            alive_count = 0
+            for t in threads:
+                if t.is_alive():
+                    alive_count += 1
+            logging.info("Instances alive: {} / {}".format(alive_count, len(threads)))
     except KeyboardInterrupt:
         # halt all threads
         GLOBAL_STATE.set_flag_halt()
