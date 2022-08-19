@@ -7,8 +7,8 @@ RUN apt-get install -y \
     build-essential cmake ninja-build python3 wget \
     libssl-dev libtinfo5
 
-# prepare the project 
-ADD . s2n-tls
+# prepare mount point
+VOLUME /project
 
 # prepare environment
 ENV DOCKER=1

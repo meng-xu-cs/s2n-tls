@@ -5,11 +5,10 @@ set -e
 
 # prepare
 source $HOME/.profile
-cd /s2n-tls/tests/saw
+cd /project/tests/saw
 
-# get llvm and the pass
+# get the pass
 cd deps
-make llvm-3.9.1
 make pass
 cd -
 
