@@ -9,11 +9,12 @@ cd /project/tests/saw
 
 # get the pass
 cd deps
+rm -rf target/Pass
 make pass
 cd -
 
 # build the bitcode
-./main.py bitcode
+./main.py bitcode --clean
 
 # run the pass
 ./main.py pass init

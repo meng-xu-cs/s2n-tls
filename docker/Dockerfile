@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:22.04
+FROM ubuntu:20.04
 
 # pre-requisites
 RUN apt-get update
-RUN apt-get install -y \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential cmake ninja-build python3 wget \
     libssl-dev libtinfo5
 
