@@ -52,7 +52,7 @@ public:
     // randomize a replacement
     const auto &options = repl_options.at(opcode);
     BinaryOperator::BinaryOps repl;
-    for (unsigned i = 0; i < 3; i++) {
+    for (unsigned counter = 0; counter < 3; counter++) {
       repl = random_choice(options);
       // lower the chance of getting a remainder
       if (repl != BinaryOperator::BinaryOps::SRem &&
@@ -288,7 +288,10 @@ private:
     }
 
     bin_inst.replaceAllUsesWith(new_inst);
-    bin_inst.removeFromParent();
+
+    // TODO: this does not seem to work, needs a more complicated way to
+    // remove the previous instruction
+    // bin_inst.removeFromParent();
   }
 };
 
