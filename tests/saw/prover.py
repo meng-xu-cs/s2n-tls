@@ -122,6 +122,80 @@ def _search_for_error_subgoal_failed(
     return result
 
 
+def __search_for_symexec_abort_assertion(
+    i: int, lines: List[str], error: Dict[str, Union[str, List[str]]]
+) -> None:
+    # base message
+    error["location"] = lines[i + 2].strip()
+    error["details"] = lines[i + 3].strip()
+
+    # look for extra details
+    assert lines[i + 4].strip() == "Details:"
+    extra = []
+
+    offset = 5
+    while i + offset < len(lines):
+        cursor = lines[i + offset]
+        if not cursor.startswith(" "):
+            break
+        extra.append(cursor.strip())
+        offset += 1
+
+    error["extra"] = extra
+
+
+def __search_for_symexec_abort_both_branch(
+    i: int, lines: List[str], error: Dict[str, Union[str, List[str]]]
+) -> None:
+    # base message
+    error["location"] = lines[i + 2].strip() + lines[i + 3].strip()
+
+    # true branch message
+    assert lines[i + 4].strip() == "Message from the true branch:"
+    extra_t = [
+        lines[i + 5].strip(),
+        lines[i + 6].strip(),
+        lines[i + 7].strip(),
+    ]
+    assert lines[i + 8].strip() == "Details:"
+
+    offset = 9
+    while i + offset < len(lines):
+        cursor = lines[i + offset]
+        if not cursor.startswith("      "):  # 6 spaces
+            break
+        extra_t.append(cursor.strip())
+        offset += 1
+    error["branch_t"] = extra_t
+
+    # false branch messages
+    j = None
+    while i + offset < len(lines):
+        cursor = lines[i + offset]
+        if cursor == "Message from the false branch:":
+            j = i + offset
+            break
+        offset += 1
+
+    # found the location
+    assert j is not None
+    extra_f = [
+        lines[j + 1].strip(),
+        lines[j + 2].strip(),
+        lines[j + 3].strip(),
+    ]
+    assert lines[j + 4].strip() == "Details:"
+
+    offset = 5
+    while j + offset < len(lines):
+        cursor = lines[j + offset]
+        if not cursor.startswith("      "):  # 6 spaces
+            break
+        extra_f.append(cursor.strip())
+        offset += 1
+    error["branch_f"] = extra_f
+
+
 def _search_for_symexec_failed(
     lines: List[str],
 ) -> List[Dict[str, Union[str, List[str]]]]:
@@ -138,23 +212,16 @@ def _search_for_symexec_failed(
         # base message
         error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
         error["type"] = "symbolic execution failed"
-        error["reason"] = lines[i + 1].strip()
-        error["location"] = lines[i + 2].strip()
-        error["details"] = lines[i + 3].strip()
+        reason = lines[i + 1].strip()
+        error["reason"] = reason
 
-        # look for extra details
-        assert lines[i + 4].strip() == "Details:"
-        extra = []
+        # look for fine-grained details
+        if reason == "Abort due to assertion failure:":
+            __search_for_symexec_abort_assertion(i, lines, error)
 
-        offset = 5
-        while i + offset < len(lines):
-            cursor = lines[i + offset]
-            if not cursor.startswith(" "):
-                break
-            extra.append(cursor.strip())
-            offset += 1
+        elif reason == "Both branches aborted after a symbolic branch.":
+            __search_for_symexec_abort_both_branch(i, lines, error)
 
-        error["extra"] = extra
         result.append(error)
 
     return result
