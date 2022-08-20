@@ -5,7 +5,7 @@ set -e
 
 # prepare
 source $HOME/.profile
-cd /project/tests/saw
+cd /s2n-tls/tests/saw
 
 # get the pass
 cd deps
@@ -20,7 +20,7 @@ cd -
 ./main.py pass init
 
 # run the fuzzing
-./main.py -v fuzz --jobs 16 --clean
+./main.py -v fuzz --clean
 
 # wait for user input
 bash
