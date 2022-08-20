@@ -106,7 +106,7 @@ def main(argv: List[str]) -> int:
                 workdir = config.PATH_WORK_SAW
                 dump_verification_output(wks, workdir)
             elif args.base == "ALL":
-                for instance in os.listdir(config.PATH_WORK_FUZZ_THREAD_DIR):
+                for instance in sorted(os.listdir(config.PATH_WORK_FUZZ_THREAD_DIR)):
                     wks = os.path.join(
                         config.PATH_WORK_FUZZ_THREAD_DIR, instance, "wks"
                     )

@@ -418,6 +418,12 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
                 if t.is_alive():
                     alive_count += 1
             logging.info("Instances alive: {} / {}".format(alive_count, len(threads)))
+
+            # shutdown if there are no instances running
+            if alive_count == 0:
+                logging.error("Shutting down because all instances run into error")
+                break
+
     except KeyboardInterrupt:
         # halt all threads
         GLOBAL_STATE.set_flag_halt()
