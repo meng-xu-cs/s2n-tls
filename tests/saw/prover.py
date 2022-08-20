@@ -6,9 +6,10 @@ import os
 import subprocess
 import re
 import shutil
+import json
 from typing import List, Dict, Union
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import config
 from util import cd, execute3
@@ -252,10 +253,8 @@ def _parse_failure_report(item: str, wks: str, workdir: str) -> List[Verificatio
     return [VerificationError(item, entry) for entry in details]
 
 
-def parse_verification_output(
-    wks: str, workdir: str
-) -> Dict[str, List[VerificationError]]:
-    result = {}
+def dump_verification_output(wks: str, workdir: str):
+    print("Analyzing: {}".format(workdir))
     for entry in os.listdir(workdir):
         if not entry.endswith(".mark"):
             continue
@@ -266,10 +265,11 @@ def parse_verification_output(
 
         # found a failure case
         item, _ = os.path.splitext(entry)
-        errors = _parse_failure_report(item, wks, workdir)
-        result[item] = errors
+        print("  Case failed: {}".format(item))
 
-    return result
+        errors = _parse_failure_report(item, wks, workdir)
+        for error in errors:
+            print("    {}".format(json.dumps(asdict(error), indent=4)))
 
 
 def verify_one(wks: str, item: str, result_dir: str) -> bool:

@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-import json
 import os
 import sys
 import logging
 import argparse
-from dataclasses import asdict
 from typing import List
 
 import config
 from util import enable_coloring_in_logging, envpaths
 from bitcode import build_bitcode, mutation_init, mutation_pass_replay
-from prover import verify_one, verify_all, parse_verification_output
+from prover import verify_one, verify_all, dump_verification_output
 from fuzzer import fuzz_start
 
 
@@ -106,17 +104,22 @@ def main(argv: List[str]) -> int:
             if args.base == "BASE":
                 wks = config.PATH_BASE
                 workdir = config.PATH_WORK_SAW
+                dump_verification_output(wks, workdir)
+            elif args.base == "ALL":
+                for instance in os.listdir(config.PATH_WORK_FUZZ_THREAD_DIR):
+                    wks = os.path.join(
+                        config.PATH_WORK_FUZZ_THREAD_DIR, instance, "wks"
+                    )
+                    workdir = os.path.join(
+                        config.PATH_WORK_FUZZ_THREAD_DIR, instance, "saw"
+                    )
+                    dump_verification_output(wks, workdir)
             else:
                 wks = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, args.base, "wks")
                 workdir = os.path.join(
                     config.PATH_WORK_FUZZ_THREAD_DIR, args.base, "saw"
                 )
-
-            parsed = parse_verification_output(wks, workdir)
-            for item, errors in parsed.items():
-                print("[{}]".format(item))
-                for entry in errors:
-                    print("  {}".format(json.dumps(asdict(entry), indent=4)))
+                dump_verification_output(wks, workdir)
 
         else:
             parser_misc.print_help()
