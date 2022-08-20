@@ -20,4 +20,7 @@ cd -
 ./main.py pass init
 
 # run the fuzzing
-./main.py -v fuzz --clean 
+./main.py -v fuzz --jobs 16 --clean
+
+# wait for user input
+bash
