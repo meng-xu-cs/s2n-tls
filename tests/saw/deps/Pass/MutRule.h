@@ -1,6 +1,10 @@
 #ifndef LLVM_MUTEST_MUT_RULE_H
 #define LLVM_MUTEST_MUT_RULE_H
 
+#include <map>
+#include <random>
+#include <vector>
+
 #include "json.hpp"
 using json = nlohmann::json;
 
@@ -32,6 +36,18 @@ public:
   /// Replay the mutation
   virtual void run_replay(Instruction &i, const json &info) const {}
 };
+
+// utilities functions
+size_t random_range(size_t min, size_t max) {
+  std::random_device rd;
+  std::mt19937_64 gen(rd());
+  std::uniform_int_distribution<size_t> dist(min, max);
+  return dist(gen);
+}
+
+template <typename T> const T &random_choice(const std::vector<T> &items) {
+  return items.at(random_range(0, items.size() - 1));
+}
 
 } // namespace mutest
 
