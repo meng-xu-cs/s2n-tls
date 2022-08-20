@@ -20,7 +20,7 @@ tag = s2n-tls-mutation-testing
 
 # targets
 build:
-	@docker build . -t $(tag)
+	@cd $(project_dir) && docker build . -t $(tag)
 
 once:
 	@docker run --rm \
@@ -30,7 +30,7 @@ once:
 		$(tag)
 
 script:
-	@docker run --rm \
+	@docker run \
 		-v $(project_dir):/project \
 		-it \
 		$(tag) \
