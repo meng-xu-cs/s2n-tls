@@ -48,6 +48,7 @@ saw-0.9:
 		rm saw.tar.gz
 
 pass:
+	@rm -rf $(TARGET_DIR)/pass
 	@mkdir -p $(TARGET_DIR)/pass
 	###
 	@echo "Building pass"
