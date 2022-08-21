@@ -220,6 +220,7 @@ def _fuzzing_thread(tid: int) -> None:
 
     # other important files
     path_all_llvm_bc = os.path.join(path_wks, "bitcode", "all_llvm.bc")
+    path_mutation_record = os.path.join(path_instance, "mutate_record.json")
     path_mutation_result = os.path.join(path_instance, "mutate_result.json")
 
     # fuzzing loop
@@ -300,6 +301,10 @@ def _fuzzing_thread(tid: int) -> None:
             )
             logging.debug("[Thread-{}]   mutation applied".format(tid))
             break
+
+        # save a record of the new trace
+        with open(path_mutation_record, "w") as f:
+            json.dump([asdict(point) for point in new_trace], f, indent=4)
 
         # done with the new test case generation
         assert len(new_trace) - len(old_trace) == 1
