@@ -11,6 +11,7 @@ using json = nlohmann::json;
 #include <llvm/ADT/Optional.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/IntrinsicInst.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Casting.h>
 using namespace llvm;

@@ -117,6 +117,19 @@ private:
   static void collectConstantOperands(const Instruction *i,
                                       std::vector<size_t> &indices) {
     if (const auto *i_call = dyn_cast<CallInst>(i)) {
+      // ignore some intrinsic functions as they have special requirements on
+      // the format of the constant value
+      if (const auto *i_intrinsic = dyn_cast<IntrinsicInst>(i_call)) {
+        switch (i_intrinsic->getIntrinsicID()) {
+        case Intrinsic::ID::memset:
+        case Intrinsic::ID::memcpy:
+        case Intrinsic::ID::memmove:
+          return;
+        default:
+          break;
+        }
+      }
+
       for (unsigned int k = 0; k < i_call->getNumArgOperands(); k++) {
         const auto *v = i_call->getArgOperand(k);
         if (isa<ConstantInt>(v)) {

@@ -45,7 +45,11 @@ def main(argv: List[str]) -> int:
     parser_pass_subs_replay = parser_pass_subs.add_parser("replay")
     parser_pass_subs_replay.add_argument("input")
 
-    parser_pass_subs.add_parser("test")
+    parser_pass_subs_test = parser_pass_subs.add_parser("test")
+    parser_pass_subs_test.add_argument("--filter-rule", default="*")
+    parser_pass_subs_test.add_argument("--filter-function", default="*")
+    parser_pass_subs_test.add_argument("--filter-instruction", default="*")
+    parser_pass_subs_test.add_argument("--repetition", default=5)
 
     # args: fuzzing
     parser_fuzz = parser_subs.add_parser("fuzz", help="fuzzily mutation testing")
@@ -100,7 +104,14 @@ def main(argv: List[str]) -> int:
             mutation_pass_replay(args.input, config.PATH_ORIG_BITCODE_ALL_LLVM)
 
         elif args.cmd_pass == "test":
-            mutation_pass_test()
+            mutation_pass_test(
+                args.repetition,
+                None if args.filter_rule == "*" else args.filter_rule,
+                None if args.filter_function == "*" else args.filter_function,
+                None
+                if args.filter_instruction == "*"
+                else int(args.filter_instruction),
+            )
 
         else:
             parser_pass.print_help()
