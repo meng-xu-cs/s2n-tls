@@ -60,7 +60,13 @@ public:
     const char *action;
     ConstantInt *new_val;
     while (true) {
-      action = random_choice(action_options);
+      if (old_val.getBitWidth() == 1) {
+        // the only action for a single bit value is flip
+        action = "flip";
+      } else {
+        action = random_choice(action_options);
+      }
+      errs() << "Action chosen to be " << action << "\n";
 
       auto result = run_action(operand->getValue(), action);
       if (old_val == result) {

@@ -49,7 +49,7 @@ def main(argv: List[str]) -> int:
     parser_pass_subs_test.add_argument("--filter-rule", default="*")
     parser_pass_subs_test.add_argument("--filter-function", default="*")
     parser_pass_subs_test.add_argument("--filter-instruction", default="*")
-    parser_pass_subs_test.add_argument("--repetition", default=5)
+    parser_pass_subs_test.add_argument("--repetition", type=int, default=10)
 
     # args: fuzzing
     parser_fuzz = parser_subs.add_parser("fuzz", help="fuzzily mutation testing")
