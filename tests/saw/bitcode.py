@@ -75,6 +75,10 @@ def mutation_init() -> List[MutationPoint]:
     with open(config.PATH_WORK_FUZZ_ENTRY_TARGETS, "w") as f:
         json.dump(targets, f, indent=4)
 
+    # refresh the pass
+    with cd(config.PATH_DEPS):
+        execute(["make", "pass"])
+
     # now invoke the llvm pass to collect mutation points
     _run_mutation_pass(
         config.PATH_WORK_BITCODE_ALL_LLVM,
