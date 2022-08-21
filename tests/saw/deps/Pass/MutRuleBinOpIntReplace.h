@@ -289,6 +289,7 @@ private:
 
     assert(new_inst != nullptr && "New instruction not created");
     bin_inst.replaceAllUsesWith(new_inst);
+    // NOTE: erasing is important to ensure that the instruction count is intact
     bin_inst.eraseFromParent();
   }
 };
