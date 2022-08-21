@@ -289,10 +289,7 @@ private:
 
     assert(new_inst != nullptr && "New instruction not created");
     bin_inst.replaceAllUsesWith(new_inst);
-
-    // TODO: this does not seem to work, needs a more complicated way to
-    // remove the previous instruction
-    // bin_inst.removeFromParent();
+    bin_inst.eraseFromParent();
   }
 };
 
