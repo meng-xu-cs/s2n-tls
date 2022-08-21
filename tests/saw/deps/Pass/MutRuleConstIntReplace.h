@@ -66,7 +66,6 @@ public:
       } else {
         action = random_choice(action_options);
       }
-      errs() << "Action chosen to be " << action << "\n";
 
       auto result = run_action(operand->getValue(), action);
       if (old_val == result) {
