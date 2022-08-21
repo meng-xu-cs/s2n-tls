@@ -65,22 +65,24 @@ public:
 
     // pick an action such that after the mutation, the new value is guaranteed
     // to be different
+    const APInt &old_val = operand->getValue();
+
     const char *action;
     ConstantInt *new_val;
-    do {
+    while (true) {
       action = random_choice(action_options);
-      auto result = doReplace(operand->getValue(), action);
-      if (!result) {
-        // this action is not good, pick another one
+
+      auto result = run_action(operand->getValue(), action);
+      if (old_val == result) {
         continue;
       }
 
       // now create the new constant
-      new_val = ConstantInt::get(i.getContext(), result.getValue());
+      new_val = ConstantInt::get(i.getContext(), result);
 
       // done with the mutation
       break;
-    } while (true);
+    }
 
     // now set the operand to be a new value
     i.setOperand(choice, new_val);
@@ -97,65 +99,51 @@ public:
     const auto *target = dyn_cast<ConstantInt>(i.getOperand(choice));
     assert(target != nullptr && "Operand is not a constant int");
 
-    auto result = doReplace(target->getValue(), info["action"]);
-    if (!result) {
-      // technically, this shouldn't happen
-      return;
-    }
-
     // now create the new constant
-    auto new_val = ConstantInt::get(i.getContext(), result.getValue());
+    auto result = run_action(target->getValue(), info["action"]);
+    auto new_val = ConstantInt::get(i.getContext(), result);
     i.setOperand(choice, new_val);
   }
 
 private:
-  static Optional<APInt> tryNewConst(const APInt &old_val, int64_t new_val,
-                                     bool is_signed) {
-    if (old_val == new_val) {
-      return Optional<APInt>();
-    }
-    return APInt(old_val.getBitWidth(), new_val, is_signed);
+  static APInt newConst(const APInt &old_val, int64_t new_val, bool is_signed) {
+    return {old_val.getBitWidth(), static_cast<uint64_t>(new_val), is_signed};
   }
 
-  static Optional<APInt> tryMinMax(const APInt &old_val, bool is_max,
-                                   bool is_signed) {
+  static APInt newMinMax(const APInt &old_val, bool is_max, bool is_signed) {
     auto nbits = old_val.getBitWidth();
     auto new_val = is_max ? (is_signed ? APInt::getSignedMaxValue(nbits)
                                        : APInt::getMaxValue(nbits))
                           : (is_signed ? APInt::getSignedMinValue(nbits)
                                        : APInt::getMinValue(nbits));
-    if (new_val == old_val) {
-      return Optional<APInt>();
-    }
     return new_val;
   }
 
-  static Optional<APInt> doReplace(const APInt &val,
-                                   const std::string &action) {
+  static APInt run_action(const APInt &val, const std::string &action) {
     // constants
     if (action == "set-0") {
-      return tryNewConst(val, 0, false);
+      return newConst(val, 0, false);
     }
     if (action == "set-1") {
-      return tryNewConst(val, 1, false);
+      return newConst(val, 1, false);
     }
     if (action == "set-2") {
-      return tryNewConst(val, 2, false);
+      return newConst(val, 2, false);
     }
     if (action == "set-minus-1") {
-      return tryNewConst(val, -1, true);
+      return newConst(val, -1, true);
     }
     if (action == "set-minus-2") {
-      return tryNewConst(val, -2, true);
+      return newConst(val, -2, true);
     }
     if (action == "set-max-signed") {
-      return tryMinMax(val, true, true);
+      return newMinMax(val, true, true);
     }
     if (action == "set-max-unsigned") {
-      return tryMinMax(val, true, false);
+      return newMinMax(val, true, false);
     }
     if (action == "set-min") {
-      return tryMinMax(val, false, true);
+      return newMinMax(val, false, true);
     }
 
     // arithmetics
