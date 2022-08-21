@@ -34,9 +34,16 @@ public:
     auto &cmp_inst = cast<ICmpInst>(i);
     const auto predicate = cmp_inst.getPredicate();
 
+    // EQ/NE can be either signed or unsigned
+    bool is_signed = cmp_inst.isSigned();
+    if (predicate == CmpInst::Predicate::ICMP_EQ ||
+        predicate == CmpInst::Predicate::ICMP_NE) {
+      is_signed = random_bool();
+    }
+
     // randomize a replacement
-    const auto &options = cmp_inst.isSigned() ? repl_signed.at(predicate)
-                                              : repl_unsigned.at(predicate);
+    const auto &options =
+        is_signed ? repl_signed.at(predicate) : repl_unsigned.at(predicate);
     const auto repl = random_choice(options);
 
     // do the replacement

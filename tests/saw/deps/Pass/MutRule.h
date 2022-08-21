@@ -49,6 +49,8 @@ size_t random_range(size_t min, size_t max) {
   return dist(gen);
 }
 
+bool random_bool() { return random_range(0, 1) == 0; }
+
 template <typename T> const T &random_choice(const std::vector<T> &items) {
   return items.at(random_range(0, items.size() - 1));
 }
