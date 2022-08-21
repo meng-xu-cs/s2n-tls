@@ -409,29 +409,39 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
         t.start()
     logging.info("All fuzzing threads started")
 
-    # busy waiting
-    try:
-        while True:
-            time.sleep(60)
-            # periodically refresh the coverage map
-            GLOBAL_STATE.dump_cov()
+    # periodically check the progress
+    while True:
+        time.sleep(60)
 
-            # check how many threads are still alive
-            alive_count = 0
-            for t in threads:
-                if t.is_alive():
-                    alive_count += 1
-            logging.info("Instances alive: {} / {}".format(alive_count, len(threads)))
+        # periodically refresh the coverage map
+        GLOBAL_STATE.dump_cov()
 
-            # shutdown if there are no instances running
-            if alive_count == 0:
-                logging.error("Shutting down because all instances run into error")
+        # check how many threads are still alive
+        alive_count = 0
+        for t in threads:
+            if t.is_alive():
+                alive_count += 1
+        logging.info("Instances alive: {} / {}".format(alive_count, len(threads)))
+
+        # check and handle user commands (if any)
+        if os.path.exists(config.PATH_WORK_FUZZ_CMD):
+            with open(config.PATH_WORK_FUZZ_CMD) as f:
+                cmd = f.readline().strip()
+
+            if cmd == "exit":
+                # halt all threads
+                GLOBAL_STATE.set_flag_halt()
+                logging.info("Halt signal sent, waiting for child threads to terminate")
                 break
 
-    except KeyboardInterrupt:
-        # halt all threads
-        GLOBAL_STATE.set_flag_halt()
-        logging.info("Halt signal sent, waiting for child threads to terminate")
+            else:
+                logging.error("Unknown command: {}".format(cmd))
+
+        # create a new thread for each thread that is accidentally dead
+        for k in range(num_threads - alive_count):
+            threads.append(
+                Thread(target=_fuzzing_thread, args=(len(threads) + k,), daemon=True)
+            )
 
     # stop all the threads
     for t in threads:
