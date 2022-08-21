@@ -21,6 +21,7 @@ def main(argv: List[str]) -> int:
     # setup argument parser
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action="count", default=1)
+    parser.add_argument("-l", "--log", action="store_true")
     parser_subs = parser.add_subparsers(dest="cmd")
 
     # args: bitcode
@@ -80,7 +81,11 @@ def main(argv: List[str]) -> int:
         else logging.DEBUG
     )
     enable_coloring_in_logging()
-    logging.basicConfig(format=LOG_FORMAT, level=LOG_LEVEL)
+
+    LOG_HANDLERS: List[logging.Handler] = [logging.StreamHandler()]
+    if args.log:
+        LOG_HANDLERS.append(logging.FileHandler(config.PATH_WORK_FUZZ_LOG))
+    logging.basicConfig(format=LOG_FORMAT, level=LOG_LEVEL, handlers=LOG_HANDLERS)
 
     # handle commands
     if args.cmd == "bitcode":
