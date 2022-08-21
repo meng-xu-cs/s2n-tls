@@ -1,20 +1,20 @@
-#ifndef LLVM_MUTEST_MUT_RULE_ICMP_REPLACE_H
-#define LLVM_MUTEST_MUT_RULE_ICMP_REPLACE_H
+#ifndef LLVM_MUTEST_MUT_RULE_INT_CMP_REPLACE_H
+#define LLVM_MUTEST_MUT_RULE_INT_CMP_REPLACE_H
 
 #include "MutRule.h"
 
 namespace mutest {
 
-class MutRuleICmpReplace : public MutRule {
+class MutRuleIntCmpReplace : public MutRule {
 public:
-  static constexpr const char *NAME = "icmp-replace";
+  static constexpr const char *NAME = "int-cmp-replace";
 
 private:
   std::map<CmpInst::Predicate, std::vector<CmpInst::Predicate>> repl_signed;
   std::map<CmpInst::Predicate, std::vector<CmpInst::Predicate>> repl_unsigned;
 
 public:
-  MutRuleICmpReplace()
+  MutRuleIntCmpReplace()
       : MutRule(NAME), repl_signed(getReplacementsSigned()),
         repl_unsigned(getReplacementsUnsigned()) {}
 
@@ -163,4 +163,4 @@ private:
 
 } // namespace mutest
 
-#endif /* LLVM_MUTEST_MUT_RULE_ICMP_REPLACE_H */
+#endif /* LLVM_MUTEST_MUT_RULE_INT_CMP_REPLACE_H */

@@ -1,20 +1,20 @@
-#ifndef LLVM_MUTEST_MUT_RULE_IBINOP_REPLACE_H
-#define LLVM_MUTEST_MUT_RULE_IBINOP_REPLACE_H
+#ifndef LLVM_MUTEST_MUT_RULE_INT_BINOP_REPLACE_H
+#define LLVM_MUTEST_MUT_RULE_INT_BINOP_REPLACE_H
 
 #include "MutRule.h"
 
 namespace mutest {
 
-class MutRuleIBinOpReplace : public MutRule {
+class MutRuleIntBinOpReplace : public MutRule {
 public:
-  static constexpr const char *NAME = "ibinop-replace";
+  static constexpr const char *NAME = "int-binop-replace";
 
 private:
   std::map<BinaryOperator::BinaryOps, std::vector<BinaryOperator::BinaryOps>>
       repl_options;
 
 public:
-  MutRuleIBinOpReplace() : MutRule(NAME), repl_options(getReplacements()) {}
+  MutRuleIntBinOpReplace() : MutRule(NAME), repl_options(getReplacements()) {}
 
 public:
   bool can_mutate(const Instruction &i) const override {
@@ -287,6 +287,7 @@ private:
       llvm_unreachable("Unknown binary operator");
     }
 
+    assert(new_inst != nullptr && "New instruction not created");
     bin_inst.replaceAllUsesWith(new_inst);
 
     // TODO: this does not seem to work, needs a more complicated way to
@@ -297,4 +298,4 @@ private:
 
 } // namespace mutest
 
-#endif /* LLVM_MUTEST_MUT_RULE_IBINOP_REPLACE_H */
+#endif /* LLVM_MUTEST_MUT_RULE_INT_BINOP_REPLACE_H */

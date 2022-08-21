@@ -4,8 +4,8 @@
 #include "MutRule.h"
 #include "MutRuleBranchSwap.h"
 #include "MutRuleCmpSwap.h"
-#include "MutRuleIBinOpReplace.h"
-#include "MutRuleICmpReplace.h"
+#include "MutRuleIntBinOpReplace.h"
+#include "MutRuleIntCmpReplace.h"
 #include "MutRuleSelectSwap.h"
 
 namespace mutest {
@@ -15,8 +15,8 @@ std::vector<std::unique_ptr<MutRule>> all_mutation_rules() {
   rules.push_back(std::unique_ptr<MutRule>(new MutRuleBranchSwap()));
   rules.push_back(std::unique_ptr<MutRule>(new MutRuleSelectSwap()));
   rules.push_back(std::unique_ptr<MutRule>(new MutRuleCmpSwap()));
-  rules.push_back(std::unique_ptr<MutRule>(new MutRuleICmpReplace()));
-  rules.push_back(std::unique_ptr<MutRule>(new MutRuleIBinOpReplace()));
+  rules.push_back(std::unique_ptr<MutRule>(new MutRuleIntCmpReplace()));
+  rules.push_back(std::unique_ptr<MutRule>(new MutRuleIntBinOpReplace()));
   return rules;
 }
 

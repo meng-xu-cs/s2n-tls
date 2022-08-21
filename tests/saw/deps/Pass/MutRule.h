@@ -38,7 +38,10 @@ public:
   virtual void run_replay(Instruction &i, const json &info) const {}
 };
 
+//
 // utilities functions
+//
+
 size_t random_range(size_t min, size_t max) {
   std::random_device rd;
   std::mt19937_64 gen(rd());
