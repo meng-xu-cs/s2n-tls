@@ -39,25 +39,15 @@ public:
 
 public:
   bool can_mutate(const Instruction &i) const override {
-    for (const auto &u : i.operands()) {
-      if (isa<ConstantInt>(u)) {
-        return true;
-      }
-    }
-    return false;
+    std::vector<size_t> const_positions;
+    collectConstantOperands(&i, const_positions);
+    return !const_positions.empty();
   }
 
   Optional<json> run_mutate(Instruction &i) const override {
     // collect the operand number
     std::vector<size_t> const_positions;
-
-    size_t counter = 0;
-    for (const auto &u : i.operands()) {
-      if (isa<ConstantInt>(u)) {
-        const_positions.push_back(counter);
-      }
-      counter++;
-    }
+    collectConstantOperands(&i, const_positions);
 
     // pick an operand to mutate
     auto choice = random_choice(const_positions);
@@ -106,6 +96,53 @@ public:
   }
 
 private:
+  static size_t probeOperandIndex(const Instruction *i, const Value *v) {
+    for (unsigned int k = 0; k < i->getNumOperands(); k++) {
+      if (i->getOperand(k) == v) {
+        return k;
+      }
+    }
+    llvm_unreachable("Unable to find the operand");
+  }
+
+  static void collectConstantOperandsNaive(const Instruction *i,
+                                           std::vector<size_t> &indices) {
+    for (unsigned int k = 0; k < i->getNumOperands(); k++) {
+      if (isa<ConstantInt>(i->getOperand(k))) {
+        indices.push_back(k);
+      }
+    }
+  }
+
+  static void collectConstantOperands(const Instruction *i,
+                                      std::vector<size_t> &indices) {
+    if (const auto *i_call = dyn_cast<CallInst>(i)) {
+      for (unsigned int k = 0; k < i_call->getNumArgOperands(); k++) {
+        const auto *v = i_call->getArgOperand(k);
+        if (isa<ConstantInt>(v)) {
+          indices.push_back(probeOperandIndex(i, v));
+        }
+      }
+    } else if (const auto *i_store = dyn_cast<StoreInst>(i)) {
+      const auto *v = i_store->getValueOperand();
+      if (isa<ConstantInt>(v)) {
+        indices.push_back(probeOperandIndex(i, v));
+      }
+    } else if (const auto *i_cmp = dyn_cast<CmpInst>(i)) {
+      collectConstantOperandsNaive(i_cmp, indices);
+    } else if (const auto *i_bin = dyn_cast<BinaryOperator>(i)) {
+      collectConstantOperandsNaive(i_bin, indices);
+    } else if (const auto *i_unary = dyn_cast<UnaryInstruction>(i)) {
+      collectConstantOperandsNaive(i_unary, indices);
+    } else if (const auto *i_phi = dyn_cast<PHINode>(i)) {
+      collectConstantOperandsNaive(i_phi, indices);
+    } else if (const auto *i_return = dyn_cast<ReturnInst>(i)) {
+      collectConstantOperandsNaive(i_return, indices);
+    } else if (const auto *i_select = dyn_cast<SelectInst>(i)) {
+      collectConstantOperandsNaive(i_select, indices);
+    }
+  }
+
   static APInt newConst(const APInt &old_val, int64_t new_val, bool is_signed) {
     return {old_val.getBitWidth(), static_cast<uint64_t>(new_val), is_signed};
   }
