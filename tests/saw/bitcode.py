@@ -157,7 +157,7 @@ def mutation_pass_test(
                 config.PATH_WORK_BITCODE_ALL_LLVM,
                 config.PATH_ORIG_BITCODE_ALL_LLVM,
             )
-            logging.info("  [{}] mutation done".format(k))
+            logging.debug("  [{}] mutation done".format(k))
 
             # test replay
             with open(config.PATH_WORK_BITCODE_MUTATION) as f1:
@@ -175,4 +175,4 @@ def mutation_pass_test(
             mutation_pass_replay(
                 config.PATH_WORK_BITCODE_MUTATION, config.PATH_ORIG_BITCODE_ALL_LLVM
             )
-            logging.info("  [{}] replay done".format(k))
+            logging.debug("  [{}] replay done".format(k))

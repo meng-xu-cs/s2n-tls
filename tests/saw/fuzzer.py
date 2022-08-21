@@ -70,9 +70,7 @@ class Seed(object):
         return self.load_and_adjust_score(0)
 
     @staticmethod
-    def new_seed(
-        trace: List[MutationStep], cov: List[VerificationError], delta: int
-    ) -> "Seed":
+    def new_seed(trace: List[MutationStep], cov: List[VerificationError]) -> "Seed":
         while True:
             count = len(os.listdir(config.PATH_WORK_FUZZ_SEED_DIR))
             try:
@@ -81,7 +79,8 @@ class Seed(object):
                     exist_ok=False,
                 )
                 seed = Seed(str(count))
-                seed._init_score(delta)
+                # the more errors in it, the lower its score
+                seed._init_score(-len(cov))
                 seed._save_trace(trace)
                 seed._save_cov(cov)
                 return seed
@@ -89,7 +88,7 @@ class Seed(object):
                 pass
 
     @staticmethod
-    def new_survival(trace: List[MutationStep], cov: List[VerificationError]) -> "Seed":
+    def save_survival(trace: List[MutationStep]) -> None:
         while True:
             count = len(os.listdir(config.PATH_WORK_FUZZ_SURVIVAL_DIR))
             try:
@@ -98,10 +97,10 @@ class Seed(object):
                     exist_ok=False,
                 )
                 seed = Seed(str(count))
-                seed._init_score(0)
                 seed._save_trace(trace)
-                seed._save_cov(cov)
-                return seed
+
+                # done with the saving
+                break
             except FileExistsError:
                 pass
 
@@ -345,11 +344,11 @@ def _fuzzing_thread(tid: int) -> None:
         # in case we found a surviving mutant
         if len(new_cov) == 0:
             logging.warning("Surviving mutant found")
-            Seed.new_survival(new_trace, new_cov)
+            Seed.save_survival(new_trace)
             continue
 
         # create a new seed and register it to the seed queue
-        new_seed = Seed.new_seed(new_trace, new_cov, novelty_marks)
+        new_seed = Seed.new_seed(new_trace, new_cov)
         GLOBAL_STATE.add_seed(new_seed)
         logging.debug("[Thread-{}]   a new seed is added to the seed pool".format(tid))
 
@@ -379,7 +378,7 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     path_seed_zero = os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, "0")
     if not os.path.exists(path_seed_zero):
         # base seed has no errors and no mutation trace
-        Seed.new_seed([], [], 0)
+        Seed.new_seed([], [])
 
     # prepare the seed queue and coverage map based on existing seeds
     logging.info(
