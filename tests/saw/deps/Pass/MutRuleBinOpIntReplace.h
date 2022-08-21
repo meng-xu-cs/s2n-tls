@@ -1,20 +1,20 @@
-#ifndef LLVM_MUTEST_MUT_RULE_INT_BINOP_REPLACE_H
-#define LLVM_MUTEST_MUT_RULE_INT_BINOP_REPLACE_H
+#ifndef LLVM_MUTEST_MUT_RULE_BINOP_INT_REPLACE_H
+#define LLVM_MUTEST_MUT_RULE_BINOP_INT_REPLACE_H
 
 #include "MutRule.h"
 
 namespace mutest {
 
-class MutRuleIntBinOpReplace : public MutRule {
+class MutRuleBinOpIntReplace : public MutRule {
 public:
-  static constexpr const char *NAME = "int-binop-replace";
+  static constexpr const char *NAME = "binop-int-replace";
 
 private:
   std::map<BinaryOperator::BinaryOps, std::vector<BinaryOperator::BinaryOps>>
       repl_options;
 
 public:
-  MutRuleIntBinOpReplace() : MutRule(NAME), repl_options(getReplacements()) {}
+  MutRuleBinOpIntReplace() : MutRule(NAME), repl_options(getReplacements()) {}
 
 public:
   bool can_mutate(const Instruction &i) const override {
@@ -298,4 +298,4 @@ private:
 
 } // namespace mutest
 
-#endif /* LLVM_MUTEST_MUT_RULE_INT_BINOP_REPLACE_H */
+#endif /* LLVM_MUTEST_MUT_RULE_BINOP_INT_REPLACE_H */
