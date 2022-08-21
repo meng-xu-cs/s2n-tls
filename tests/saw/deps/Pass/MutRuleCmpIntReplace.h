@@ -35,10 +35,26 @@ public:
     const auto predicate = cmp_inst.getPredicate();
 
     // EQ/NE can be either signed or unsigned
-    bool is_signed = cmp_inst.isSigned();
-    if (predicate == CmpInst::Predicate::ICMP_EQ ||
-        predicate == CmpInst::Predicate::ICMP_NE) {
+    bool is_signed;
+    switch (predicate) {
+    case CmpInst::Predicate::ICMP_EQ:
+    case CmpInst::Predicate::ICMP_NE:
       is_signed = random_bool();
+      break;
+    case CmpInst::Predicate::ICMP_SGT:
+    case CmpInst::Predicate::ICMP_SGE:
+    case CmpInst::Predicate::ICMP_SLT:
+    case CmpInst::Predicate::ICMP_SLE:
+      is_signed = true;
+      break;
+    case CmpInst::Predicate::ICMP_UGT:
+    case CmpInst::Predicate::ICMP_UGE:
+    case CmpInst::Predicate::ICMP_ULT:
+    case CmpInst::Predicate::ICMP_ULE:
+      is_signed = false;
+      break;
+    default:
+      llvm_unreachable("Unknown predicate");
     }
 
     // randomize a replacement
