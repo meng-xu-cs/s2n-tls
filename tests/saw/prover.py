@@ -127,19 +127,31 @@ def __search_for_symexec_abort_assertion(
 ) -> None:
     # base message
     error["location"] = lines[i + 2].strip()
-    error["details"] = lines[i + 3].strip()
+    category = lines[i + 3].strip()
+    error["category"] = category
 
     # look for extra details
-    assert lines[i + 4].strip() == "Details:"
     extra = []
 
-    offset = 5
-    while i + offset < len(lines):
-        cursor = lines[i + offset]
-        if not cursor.startswith(" "):
-            break
-        extra.append(cursor.strip())
-        offset += 1
+    if category == "Global symbol not allocated":
+        assert lines[i + 4].strip() == "Details:"
+        offset = 5
+        while i + offset < len(lines):
+            cursor = lines[i + offset]
+            if not cursor.startswith(" "):
+                break
+            extra.append(cursor.strip())
+            offset += 1
+
+    elif category == "Arithmetic comparison on incompatible values":
+        extra.append(lines[i + 4].strip())
+        extra.append(lines[i + 5].strip())
+        extra.append(lines[i + 6].strip())
+
+    else:
+        raise RuntimeError(
+            "Unknown category for symexec assertion failure: {}".format(category)
+        )
 
     error["extra"] = extra
 
@@ -221,6 +233,11 @@ def _search_for_symexec_failed(
 
         elif reason == "Both branches aborted after a symbolic branch.":
             __search_for_symexec_abort_both_branch(i, lines, error)
+
+        else:
+            raise RuntimeError(
+                "Unknown reasons for symbolic execution failure: {}".format(reason)
+            )
 
         result.append(error)
 
