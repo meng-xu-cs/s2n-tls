@@ -24,6 +24,7 @@ PATH_WORK_FUZZ_THREAD_DIR = os.path.join(PATH_WORK_FUZZ, "threads")
 PATH_WORK_FUZZ_STATUS_DIR = os.path.join(PATH_WORK_FUZZ, "status")
 PATH_WORK_BITCODE = os.path.join(PATH_WORK, "bitcode")
 PATH_WORK_BITCODE_ALL_LLVM = os.path.join(PATH_WORK_BITCODE, "all_llvm.bc")
+PATH_WORK_BITCODE_MUTATION = os.path.join(PATH_WORK_BITCODE, "mutation.json")
 
 # misc
 NUM_CORES = multiprocessing.cpu_count()

@@ -7,7 +7,12 @@ from typing import List
 
 import config
 from util import enable_coloring_in_logging, envpaths
-from bitcode import build_bitcode, mutation_init, mutation_pass_replay
+from bitcode import (
+    build_bitcode,
+    mutation_init,
+    mutation_pass_replay,
+    mutation_pass_test,
+)
 from prover import verify_one, verify_all, dump_verification_output
 from fuzzer import fuzz_start
 
@@ -39,6 +44,8 @@ def main(argv: List[str]) -> int:
 
     parser_pass_subs_replay = parser_pass_subs.add_parser("replay")
     parser_pass_subs_replay.add_argument("input")
+
+    parser_pass_subs.add_parser("test")
 
     # args: fuzzing
     parser_fuzz = parser_subs.add_parser("fuzz", help="fuzzily mutation testing")
@@ -91,6 +98,9 @@ def main(argv: List[str]) -> int:
 
         elif args.cmd_pass == "replay":
             mutation_pass_replay(args.input, config.PATH_ORIG_BITCODE_ALL_LLVM)
+
+        elif args.cmd_pass == "test":
+            mutation_pass_test()
 
         else:
             parser_pass.print_help()

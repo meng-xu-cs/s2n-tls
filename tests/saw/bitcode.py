@@ -1,11 +1,11 @@
 """
 LLVM-based functionalities
 """
-
+import logging
 import os
 import shutil
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import List, Dict, Any
 
 import config
@@ -126,3 +126,40 @@ def mutation_pass_mutate(
             output,
         ],
     )
+
+
+def mutation_pass_test() -> None:
+    all_points = mutation_init()
+    for point in all_points:
+        logging.info(
+            "Testing: {} on {}::{}".format(
+                point.rule, point.function, point.instruction
+            )
+        )
+
+        # test mutation
+        mutation_pass_mutate(
+            point,
+            config.PATH_WORK_BITCODE_MUTATION,
+            config.PATH_WORK_BITCODE_ALL_LLVM,
+            config.PATH_ORIG_BITCODE_ALL_LLVM,
+        )
+        logging.info("  Mutation done")
+
+        # test replay
+        with open(config.PATH_WORK_BITCODE_MUTATION) as f1:
+            result = json.load(f1)
+            if not result["changed"]:
+                logging.warning("Mutation point results in no change")
+                continue
+
+        step = MutationStep(
+            point.rule, point.function, point.instruction, result["package"]
+        )
+        with open(config.PATH_WORK_BITCODE_MUTATION, "w") as f2:
+            json.dump([asdict(step)], f2, indent=4)
+
+        mutation_pass_replay(
+            config.PATH_WORK_BITCODE_MUTATION, config.PATH_ORIG_BITCODE_ALL_LLVM
+        )
+        logging.info("  Replay done")
