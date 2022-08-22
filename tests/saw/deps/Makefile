@@ -23,11 +23,9 @@ TARGET_DIR := $(CURRENT_DIR)/target
 
 llvm-3.9.1:
 	@mkdir -p $(TARGET_DIR)
-	###
 	@echo "Downloading binaries"
 	@wget https://releases.llvm.org/3.9.1/clang+llvm-3.9.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
 		-O $(TARGET_DIR)/llvm.tar.gz
-	###
 	@echo "Unpacking binaries"
 	@cd $(TARGET_DIR) && \
 		tar xvf llvm.tar.gz && \
@@ -36,11 +34,9 @@ llvm-3.9.1:
 
 saw-0.9:
 	@mkdir -p $(TARGET_DIR)
-	###
 	@echo "Downloading binaries"
 	@wget https://github.com/GaloisInc/saw-script/releases/download/v0.9/saw-0.9-Linux-x86_64-with-solvers.tar.gz \
 		-O $(TARGET_DIR)/saw.tar.gz
-	###
 	@echo "Unpacking binaries"
 	@cd $(TARGET_DIR) && \
 		tar xvf saw.tar.gz && \
@@ -50,7 +46,6 @@ saw-0.9:
 pass:
 	@rm -rf $(TARGET_DIR)/pass
 	@mkdir -p $(TARGET_DIR)/pass
-	###
 	@echo "Building pass"
 	@cd $(TARGET_DIR)/pass && \
 		cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../../Pass && \
