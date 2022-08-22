@@ -439,9 +439,11 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
 
         # create a new thread for each thread that is accidentally dead
         for k in range(num_threads - alive_count):
-            threads.append(
-                Thread(target=_fuzzing_thread, args=(len(threads) + k,), daemon=True)
+            new_instance = Thread(
+                target=_fuzzing_thread, args=(len(threads) + k,), daemon=True
             )
+            new_instance.start()
+            threads.append(new_instance)
 
     # stop all the threads
     for t in threads:

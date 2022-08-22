@@ -148,6 +148,10 @@ def __search_for_symexec_abort_assertion(
         extra.append(lines[i + 5].strip())
         extra.append(lines[i + 6].strip())
 
+    elif category == "Error during memory load":
+        # no more information
+        pass
+
     else:
         raise RuntimeError(
             "Unknown category for symexec assertion failure: {}".format(category)
