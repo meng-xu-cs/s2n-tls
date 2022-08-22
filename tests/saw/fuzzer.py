@@ -337,9 +337,8 @@ def _fuzzing_thread(tid: int) -> None:
         if novelty_marks == 0:
             continue
 
-        # adjust the score for the base seed
-        # add 2 because we previously deducted one point from it
-        GLOBAL_STATE.update_seed_score(base_seed, 2)
+        # restore back the score for the base seed if it leads to a novel seed
+        GLOBAL_STATE.update_seed_score(base_seed, 1)
 
         # in case we found a surviving mutant
         if len(new_cov) == 0:
