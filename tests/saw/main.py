@@ -84,7 +84,7 @@ def main(argv: List[str]) -> int:
 
     LOG_HANDLERS: List[logging.Handler] = [logging.StreamHandler()]
     if args.log:
-        LOG_HANDLERS.append(logging.FileHandler(config.PATH_WORK_FUZZ_LOG))
+        LOG_HANDLERS.append(logging.FileHandler(config.PATH_WORK_FUZZ_LOG, mode="w"))
     logging.basicConfig(format=LOG_FORMAT, level=LOG_LEVEL, handlers=LOG_HANDLERS)
 
     # handle commands
