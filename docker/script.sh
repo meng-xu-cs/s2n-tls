@@ -7,12 +7,6 @@ set -e
 source $HOME/.profile
 cd /s2n-tls/tests/saw
 
-# get the pass
-cd deps
-rm -rf target/Pass
-make pass
-cd -
-
 # build the bitcode
 ./main.py bitcode --clean
 
@@ -20,7 +14,7 @@ cd -
 ./main.py pass init
 
 # run the fuzzing
-./main.py -v fuzz --clean
+./main.py -v -l fuzz --clean
 
 # wait for user input
 bash
