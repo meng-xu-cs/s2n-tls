@@ -249,6 +249,7 @@ def _search_for_symexec_failed(
 
 
 def _search_for_assertion_failed(
+    wks: str,
     lines: List[str],
 ) -> List[Dict[str, Union[str, List[str]]]]:
     error_pattern = re.compile(r"^\s\sAssertion made at: (.+?)$")
@@ -259,8 +260,13 @@ def _search_for_assertion_failed(
     error_points = {}
     for i, line in enumerate(lines):
         match = error_pattern.match(line)
-        if match:
-            error_points[i] = match.group(1)
+        if not match:
+            continue
+
+        location = match.group(1)
+        if location.startswith(wks):
+            location = location[len(wks) :]
+        error_points[i] = location
 
     # look up until reaching the error message
     for i, location in error_points.items():
@@ -333,7 +339,7 @@ def _parse_failure_report(item: str, wks: str, workdir: str) -> List[Verificatio
     details: List[Dict[str, Union[str, List[str]]]] = []
     details.extend(_search_for_error_subgoal_failed(wks, lines))
     details.extend(_search_for_symexec_failed(lines))
-    details.extend(_search_for_assertion_failed(lines))
+    details.extend(_search_for_assertion_failed(wks, lines))
     details.extend(_search_for_prover_unknown(wks, lines))
     assert len(details) != 0
 
