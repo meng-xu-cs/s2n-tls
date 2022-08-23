@@ -81,11 +81,11 @@ def main(argv: List[str]) -> int:
         else logging.DEBUG
     )
     enable_coloring_in_logging()
-
-    LOG_HANDLERS: List[logging.Handler] = [logging.StreamHandler()]
+    logging.basicConfig(format=LOG_FORMAT, level=LOG_LEVEL)
     if args.log:
-        LOG_HANDLERS.append(logging.FileHandler(config.PATH_WORK_FUZZ_LOG, mode="w"))
-    logging.basicConfig(format=LOG_FORMAT, level=LOG_LEVEL, handlers=LOG_HANDLERS)
+        logging.getLogger().addHandler(
+            logging.FileHandler(config.PATH_WORK_FUZZ_LOG, mode="w")
+        )
 
     # handle commands
     if args.cmd == "bitcode":
