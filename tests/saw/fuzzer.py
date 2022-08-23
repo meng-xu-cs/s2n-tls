@@ -9,7 +9,6 @@ import shutil
 import time
 import random
 from dataclasses import asdict
-from tempfile import TemporaryDirectory
 from threading import Thread, Lock
 from typing import List, Dict, Tuple
 
@@ -201,23 +200,15 @@ GLOBAL_STATE = GlobalState()
 
 
 def _fuzzing_thread(tid: int) -> None:
-    with TemporaryDirectory() as instance_dir:
-        try:
-            _run_instance(tid, instance_dir)
-        except Exception as ex:
-            # grab a copy of everything in the tempdir
-            transfer_dir = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, str(tid))
-            shutil.copytree(instance_dir, transfer_dir)
-            raise ex
-
-
-def _run_instance(tid: int, path_instance: str) -> None:
     global GLOBAL_STATE
 
     # load the mutation points
     mutation_points = load_mutation_points()
 
     # workspace preparation
+    path_instance = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, str(tid))
+    os.makedirs(path_instance, exist_ok=True)
+
     path_saw = os.path.join(path_instance, "saw")
     os.makedirs(path_saw, exist_ok=True)
 
