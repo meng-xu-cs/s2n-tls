@@ -34,5 +34,5 @@ script:
 		-v $(project_dir):/project \
 		-it \
 		$(tag) \
-		bash /s2n-tls/docker/script.sh
+		bash /project/docker/script.sh
 

@@ -7,9 +7,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential cmake ninja-build python3 wget \
     libssl-dev libtinfo5
 
-# prepare the files
-ADD . /s2n-tls
-
 # prepare for data exchange
 VOLUME /project
 

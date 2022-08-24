@@ -6,6 +6,7 @@ Please choose one of the following targets:
   - clang-13.0.0
   - llvm-3.9.1
   - saw-0.9
+  - saw-nightly
   - pass
 endef
 export cmdline
@@ -85,6 +86,33 @@ saw-0.9:
 		tar xvf saw.tar.gz && \
 		mv saw-0.9-Linux-x86_64-with-solvers $@ && \
 		rm saw.tar.gz
+
+saw-nightly:
+	@mkdir -p $(TARGET_DIR)/$@
+	@echo "Installing SAW"
+	@curl --retry 3 \
+		https://s2n-public-test-dependencies.s3.us-west-2.amazonaws.com/saw-0.9.0.99-Linux-x86_64.tar.gz \
+		--output saw.tar.gz
+	@mkdir saw/
+	@tar xvf saw.tar.gz --strip-components=1 -C saw
+	@rsync -r -a saw/ $(TARGET_DIR)/$@
+	@rm -rf saw/ saw.tar.gz
+	@echo "Installing solver: yices"
+	@curl --retry 3 \
+		https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices-2.6.1-x86_64-pc-linux-gnu-static-gmp.tar.gz \
+		--output yices.tar.gz
+	@mkdir yices/
+	@tar xvf yices.tar.gz --strip-components=1 -C yices
+	@rsync -r -a yices/ $(TARGET_DIR)/$@
+	@rm -rf yices/ yices.tar.gz
+	@echo "Installing solver: z3"
+	@curl --retry 3 \
+		https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-4.8.8-x64-ubuntu-16.04.zip \
+		--output z3.zip
+	@unzip z3.zip
+	@rsync -r -a z3-4.8.8-x64-ubuntu-16.04/ $(TARGET_DIR)/$@
+	@rm -rf z3-4.8.8-x64-ubuntu-16.04/ z3.zip
+
 
 pass:
 	@rm -rf $(TARGET_DIR)/pass

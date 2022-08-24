@@ -5,7 +5,7 @@ set -e
 
 # prepare
 source $HOME/.profile
-cd /s2n-tls/tests/saw
+cd /project/tests/saw
 
 # build the bitcode
 ./main.py bitcode --clean
