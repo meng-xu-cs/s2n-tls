@@ -146,12 +146,16 @@ private:
       if (isa<ConstantInt>(v)) {
         indices.push_back(probeOperandIndex(i, v));
       }
+    } else if (const auto *i_unary = dyn_cast<UnaryInstruction>(i)) {
+      // do not mutate the alloca constant
+      if (isa<AllocaInst>(i_unary)) {
+        return;
+      }
+      collectConstantOperandsNaive(i_unary, indices);
     } else if (const auto *i_cmp = dyn_cast<CmpInst>(i)) {
       collectConstantOperandsNaive(i_cmp, indices);
     } else if (const auto *i_bin = dyn_cast<BinaryOperator>(i)) {
       collectConstantOperandsNaive(i_bin, indices);
-    } else if (const auto *i_unary = dyn_cast<UnaryInstruction>(i)) {
-      collectConstantOperandsNaive(i_unary, indices);
     } else if (const auto *i_phi = dyn_cast<PHINode>(i)) {
       collectConstantOperandsNaive(i_phi, indices);
     } else if (const auto *i_return = dyn_cast<ReturnInst>(i)) {

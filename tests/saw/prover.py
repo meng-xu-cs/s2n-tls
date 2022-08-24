@@ -262,28 +262,30 @@ def _search_for_assertion_failed(
         match = error_pattern.match(line)
         if not match:
             continue
-
-        location = match.group(1)
-        if location.startswith(wks):
-            location = location[len(wks) :]
-        error_points[i] = location
+        error_points[i] = match.group(1)
 
     # look up until reaching the error message
     for i, location in error_points.items():
+        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error["type"] = "assertion failed"
+
         offset = 1
         while i >= offset:
             cursor = lines[i - offset]
             if cursor == "at " + location:
                 message = lines[i - offset + 1]
-
-                error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
-                error["type"] = "assertion failed"
-                error["location"] = location
                 error["message"] = message
-                result.append(error)
+
+                # strip out the prefix of the location
+                if location.startswith(wks):
+                    location = location[len(wks) :]
+                error["location"] = location
                 break
 
             offset += 1
+
+        assert i != offset
+        result.append(error)
 
     return result
 
@@ -323,6 +325,7 @@ def _search_for_prover_unknown(
             trace.append("{} @ {}".format(function, location))
             offset += 1
 
+        assert i != offset
         error["trace"] = trace
         result.append(error)
 
