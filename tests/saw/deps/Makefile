@@ -20,7 +20,7 @@ help:
 
 CURRENT_DIR := $(shell pwd)
 TARGET_DIR := $(CURRENT_DIR)/target
-LOCAL_INST := ~/.local
+LOCAL_INST := /usr/local
 
 #
 # dependencies
