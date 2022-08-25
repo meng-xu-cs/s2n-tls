@@ -92,12 +92,12 @@ class Seed(object):
         while True:
             count = len(os.listdir(config.PATH_WORK_FUZZ_SURVIVAL_DIR))
             try:
-                os.makedirs(
-                    os.path.join(config.PATH_WORK_FUZZ_SURVIVAL_DIR, str(count)),
-                    exist_ok=False,
-                )
-                seed = Seed(str(count))
-                seed._save_trace(trace)
+                path_item = os.path.join(config.PATH_WORK_FUZZ_SURVIVAL_DIR, str(count))
+                os.makedirs(path_item, exist_ok=False)
+                path_trace = os.path.join(path_item, "trace.json")
+                with open(path_trace, "w") as f:
+                    jobj = [asdict(item) for item in trace]
+                    json.dump(jobj, f, indent=4)
 
                 # done with the saving
                 break

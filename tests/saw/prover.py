@@ -123,7 +123,7 @@ def _search_for_error_subgoal_failed(
 
 
 def __search_for_symexec_abort_assertion(
-    i: int, lines: List[str], error: Dict[str, Union[str, List[str]]]
+    wks: str, i: int, lines: List[str], error: Dict[str, Union[str, List[str]]]
 ) -> None:
     # base message
     error["location"] = lines[i + 2].strip()
@@ -151,6 +151,54 @@ def __search_for_symexec_abort_assertion(
     elif category == "Error during memory load":
         # no more information
         pass
+
+    elif category.startswith("No override specification applies for"):
+        offset = 4
+        while i + offset < len(lines):
+            cursor = lines[i + offset].strip()
+            if (
+                cursor == "The following overrides had some preconditions "
+                "that failed concretely:"
+            ):
+                break
+            offset += 1
+        assert i + offset != len(lines)
+
+        extra_name = lines[i + offset + 1].strip()
+        match = re.compile(r"^- Name: (.*)$").match(extra_name)
+        assert match
+        extra_name = match.group(1)
+        extra.append(extra_name)
+
+        extra_location = lines[i + offset + 2].strip()
+        match = re.compile(r"^- Location: (.*)$").match(extra_location)
+        assert match
+        extra_location = match.group(1)
+        if extra_location.startswith(wks):
+            extra_location = extra_location[len(wks) :]
+        extra.append(extra_location)
+
+        offset = offset + 3
+        while i + offset < len(lines):
+            cursor = lines[i + offset].strip()
+            if cursor.startswith("*"):
+                break
+            offset += 1
+        assert i + offset != len(lines)
+
+        match = re.compile(r"^\* (.*): error: (.*)$").match(lines[i + offset].strip())
+        assert match
+
+        extra_location = match.group(1)
+        if extra_location.startswith(wks):
+            extra_location = extra_location[len(wks) :]
+        extra.append(extra_location)
+
+        extra_error = match.group(2)
+        extra.append(extra_error)
+
+        extra_details = lines[i + offset + 1].strip()
+        extra.append(extra_details)
 
     else:
         raise RuntimeError(
@@ -213,6 +261,7 @@ def __search_for_symexec_abort_both_branch(
 
 
 def _search_for_symexec_failed(
+    wks: str,
     lines: List[str],
 ) -> List[Dict[str, Union[str, List[str]]]]:
     result: List[Dict[str, Union[str, List[str]]]] = []
@@ -233,7 +282,7 @@ def _search_for_symexec_failed(
 
         # look for fine-grained details
         if reason == "Abort due to assertion failure:":
-            __search_for_symexec_abort_assertion(i, lines, error)
+            __search_for_symexec_abort_assertion(wks, i, lines, error)
 
         elif reason == "Both branches aborted after a symbolic branch.":
             __search_for_symexec_abort_both_branch(i, lines, error)
@@ -341,7 +390,7 @@ def _parse_failure_report(item: str, wks: str, workdir: str) -> List[Verificatio
     # scan for the stdout file for error patterns
     details: List[Dict[str, Union[str, List[str]]]] = []
     details.extend(_search_for_error_subgoal_failed(wks, lines))
-    details.extend(_search_for_symexec_failed(lines))
+    details.extend(_search_for_symexec_failed(wks, lines))
     details.extend(_search_for_assertion_failed(wks, lines))
     details.extend(_search_for_prover_unknown(wks, lines))
     assert len(details) != 0
