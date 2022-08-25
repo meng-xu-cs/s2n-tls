@@ -8,7 +8,7 @@ namespace mutest {
 class MutRuleConstIntReplace : public MutRule {
 public:
   static constexpr const char *NAME = "const-replace";
-
+  static bool const second_mutation = true;
 private:
   std::vector<const char *> action_options;
 
@@ -38,6 +38,7 @@ public:
   }
 
 public:
+  bool can_second_mutation() const override{return second_mutation;}
   bool can_mutate(const Instruction &i) const override {
     std::vector<size_t> const_positions;
     collectConstantOperands(&i, const_positions);

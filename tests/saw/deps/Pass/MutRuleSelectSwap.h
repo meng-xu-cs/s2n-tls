@@ -8,11 +8,12 @@ namespace mutest {
 class MutRuleSelectSwap : public MutRule {
 public:
   static constexpr const char *NAME = "select-swap";
-
+  static bool const second_mutation = false;
 public:
   MutRuleSelectSwap() : MutRule(NAME) {}
 
 public:
+  bool can_second_mutation() const override{return second_mutation;}
   bool can_mutate(const Instruction &i) const override {
     return isa<SelectInst>(i);
   }

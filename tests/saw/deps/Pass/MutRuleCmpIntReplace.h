@@ -8,6 +8,7 @@ namespace mutest {
 class MutRuleCmpIntReplace : public MutRule {
 public:
   static constexpr const char *NAME = "cmp-int-replace";
+  static bool const second_mutation = true;
 
 private:
   std::map<CmpInst::Predicate, std::vector<CmpInst::Predicate>> repl_signed;
@@ -19,6 +20,7 @@ public:
         repl_unsigned(getReplacementsUnsigned()) {}
 
 public:
+  bool can_second_mutation() const override{return second_mutation;}
   bool can_mutate(const Instruction &i) const override {
     if (!isa<ICmpInst>(i)) {
       return false;
