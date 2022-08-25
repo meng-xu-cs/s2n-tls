@@ -5,16 +5,16 @@ set -e
 
 # prepare
 source $HOME/.profile
-cd /s2n-tls/tests/saw
+cd /project/tests/saw
 
 # build the bitcode
-./main.py bitcode --clean
+python3.9 main.py bitcode --clean
 
 # run the pass
-./main.py pass init
+python3.9 main.py pass init
 
 # run the fuzzing
-./main.py -v -l fuzz --clean
+python3.9 main.py -v -l fuzz --clean
 
 # wait for user input
 bash
