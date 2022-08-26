@@ -388,14 +388,23 @@ def dump_verification_output(wks: str, workdir: str):
         if not entry.endswith(".mark"):
             continue
 
-        with open(os.path.join(workdir, entry)) as f:
+        path_mark = os.path.join(workdir, entry)
+        with open(path_mark) as f:
             if f.readline().strip() == "success":
                 continue
 
-        # found a failure case
+        # found a potential failure case
         item, _ = os.path.splitext(entry)
-        print("  Case failed: {}".format(item))
 
+        # check whether this out is in next round of mutation
+        time_mark = os.path.getmtime(path_mark)
+        path_out = os.path.join(workdir, item + ".out")
+        time_out = os.path.getmtime(path_out)
+        if time_out > time_mark:
+            continue
+
+        # now confirmed that this is definitely a failure case
+        print("  Case failed: {}".format(item))
         errors = _parse_failure_report(item, wks, workdir)
         for error in errors:
             print("    {}".format(json.dumps(asdict(error), indent=4)))
