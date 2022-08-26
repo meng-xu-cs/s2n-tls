@@ -171,7 +171,7 @@ def __search_for_symexec_abort_assertion(
         extra.append(extra_name)
 
         extra_location = lines[i + offset + 2].strip()
-        match = re.compile(r"^- Location: (.*)$").match(extra_location)
+        match = re.compile(r"^Location: (.*)$").match(extra_location)
         assert match
         extra_location = match.group(1)
         if extra_location.startswith(wks):
