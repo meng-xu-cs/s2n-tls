@@ -222,7 +222,7 @@ def __search_for_symexec_abort_both_branch(
 
     error_t: Dict[str, Union[str, List[str]]] = OrderedDict()
     __search_for_symexec_abort_assertion(wks, i + 4, lines, error_t)
-    error_t["branch_t"] = ["{}: {}".format(k, v) for k, v in error_t.items()]
+    error["branch_t"] = ["{}: {}".format(k, v) for k, v in error_t.items()]
 
     # false branch messages
     j = None
@@ -240,7 +240,7 @@ def __search_for_symexec_abort_both_branch(
 
     error_f: Dict[str, Union[str, List[str]]] = OrderedDict()
     __search_for_symexec_abort_assertion(wks, j + 1, lines, error_f)
-    error_t["branch_f"] = ["{}: {}".format(k, v) for k, v in error_f.items()]
+    error["branch_f"] = ["{}: {}".format(k, v) for k, v in error_f.items()]
 
 
 def _search_for_symexec_failed(
