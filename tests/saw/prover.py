@@ -7,7 +7,7 @@ import subprocess
 import re
 import shutil
 import json
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
 
@@ -18,6 +18,7 @@ from util import cd, execute3
 # Preparation
 #
 
+ErrorRecord = Union[str, List[str], Dict[str, Union[str, List[str], Dict[str, Any]]]]
 
 # TODO: ideally we should not ignore any SAW scripts.
 IGNORED_TOP_LEVEL_SAW_SCRIPTS = [
@@ -66,17 +67,15 @@ def collect_verified_functions() -> List[str]:
 @dataclass(frozen=True, eq=True, order=True)
 class VerificationError(object):
     item: str
-    details: Dict[str, Union[str, List[str]]]
+    details: ErrorRecord
 
 
-def _search_for_error_subgoal_failed(
-    wks: str, lines: List[str]
-) -> List[Dict[str, Union[str, List[str]]]]:
+def _search_for_error_subgoal_failed(wks: str, lines: List[str]) -> List[ErrorRecord]:
     error_pattern = re.compile(
         r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?): (.+?)$"
     )
 
-    result: List[Dict[str, Union[str, List[str]]]] = []
+    result: List[ErrorRecord] = []
 
     # scan for the stdout file for error patterns
     error_points = {}
@@ -92,7 +91,7 @@ def _search_for_error_subgoal_failed(
         message = match.group(3)
 
         # prepare base message
-        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error = OrderedDict()  # type: Dict[str, ErrorRecord]
         error["type"] = "subgoal failed"
         error["goal"] = goal
         error["location"] = location
@@ -123,7 +122,7 @@ def _search_for_error_subgoal_failed(
 
 
 def __search_for_symexec_abort_assertion(
-    wks: str, i: int, lines: List[str], error: Dict[str, Union[str, List[str]]]
+    wks: str, i: int, lines: List[str], error: Dict[str, ErrorRecord]
 ) -> None:
     # base message
     error["location"] = lines[i + 1].strip()
@@ -211,18 +210,30 @@ def __search_for_symexec_abort_assertion(
 
 
 def __search_for_symexec_abort_both_branch(
-    wks: str, i: int, lines: List[str], error: Dict[str, Union[str, List[str]]]
+    wks: str, i: int, lines: List[str], error: Dict[str, ErrorRecord]
 ) -> None:
     # base message
     error["location"] = lines[i + 1].strip() + lines[i + 2].strip()
 
     # true branch message
     assert lines[i + 3].strip() == "Message from the true branch:"
-    assert lines[i + 4].strip() == "Abort due to assertion failure:"
+    reason = lines[i + 4].strip()
 
-    error_t: Dict[str, Union[str, List[str]]] = OrderedDict()
-    __search_for_symexec_abort_assertion(wks, i + 4, lines, error_t)
-    error["branch_t"] = ["{}: {}".format(k, v) for k, v in error_t.items()]
+    # look for fine-grained details
+    error_t: Dict[str, ErrorRecord] = OrderedDict()
+
+    if reason == "Abort due to assertion failure:":
+        __search_for_symexec_abort_assertion(wks, i + 4, lines, error_t)
+
+    elif reason == "Both branches aborted after a symbolic branch.":
+        __search_for_symexec_abort_both_branch(wks, i + 4, lines, error_t)
+
+    else:
+        raise RuntimeError(
+            "Unknown reasons for symbolic execution failure: {}".format(reason)
+        )
+
+    error["branch_t"] = error_t
 
     # false branch messages
     j = None
@@ -236,18 +247,27 @@ def __search_for_symexec_abort_both_branch(
 
     # found the location
     assert j is not None
-    assert lines[j + 1].strip() == "Abort due to assertion failure:"
+    reason = lines[j + 1].strip()
 
-    error_f: Dict[str, Union[str, List[str]]] = OrderedDict()
-    __search_for_symexec_abort_assertion(wks, j + 1, lines, error_f)
-    error["branch_f"] = ["{}: {}".format(k, v) for k, v in error_f.items()]
+    # look for fine-grained details
+    error_f: Dict[str, ErrorRecord] = OrderedDict()
+
+    if reason == "Abort due to assertion failure:":
+        __search_for_symexec_abort_assertion(wks, j + 1, lines, error_f)
+
+    elif reason == "Both branches aborted after a symbolic branch.":
+        __search_for_symexec_abort_both_branch(wks, j + 1, lines, error_f)
+
+    else:
+        raise RuntimeError(
+            "Unknown reasons for symbolic execution failure: {}".format(reason)
+        )
+
+    error["branch_f"] = error_f
 
 
-def _search_for_symexec_failed(
-    wks: str,
-    lines: List[str],
-) -> List[Dict[str, Union[str, List[str]]]]:
-    result: List[Dict[str, Union[str, List[str]]]] = []
+def _search_for_symexec_failed(wks: str, lines: List[str]) -> List[ErrorRecord]:
+    result: List[ErrorRecord] = []
 
     # scan for the stdout file for error patterns
     error_points = []
@@ -258,7 +278,7 @@ def _search_for_symexec_failed(
     # parse each error points
     for i in error_points:
         # base message
-        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error = OrderedDict()  # type: Dict[str, ErrorRecord]
         error["type"] = "symbolic execution failed"
         reason = lines[i + 1].strip()
         error["reason"] = reason
@@ -280,13 +300,10 @@ def _search_for_symexec_failed(
     return result
 
 
-def _search_for_assertion_failed(
-    wks: str,
-    lines: List[str],
-) -> List[Dict[str, Union[str, List[str]]]]:
+def _search_for_assertion_failed(wks: str, lines: List[str]) -> List[ErrorRecord]:
     error_pattern = re.compile(r"^\s\sAssertion made at: (.+?)$")
 
-    result: List[Dict[str, Union[str, List[str]]]] = []
+    result: List[ErrorRecord] = []
 
     # scan for the stdout file for error patterns
     error_points = {}
@@ -298,7 +315,7 @@ def _search_for_assertion_failed(
 
     # look up until reaching the error message
     for i, location in error_points.items():
-        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error = OrderedDict()  # type: Dict[str, ErrorRecord]
         error["type"] = "assertion failed"
 
         offset = 1
@@ -322,12 +339,10 @@ def _search_for_assertion_failed(
     return result
 
 
-def _search_for_prover_unknown(
-    wks: str, lines: List[str]
-) -> List[Dict[str, Union[str, List[str]]]]:
+def _search_for_prover_unknown(wks: str, lines: List[str]) -> List[ErrorRecord]:
     trace_pattern = re.compile(r"^\"(.*?)\" \((.*?)\)$")
 
-    result: List[Dict[str, Union[str, List[str]]]] = []
+    result: List[ErrorRecord] = []
 
     # scan for the stdout file for error patterns
     error_points = []
@@ -337,7 +352,7 @@ def _search_for_prover_unknown(
 
     # parse each error points
     for i in error_points:
-        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error = OrderedDict()  # type: Dict[str, ErrorRecord]
         error["type"] = "prover unknown"
 
         trace = []
@@ -371,7 +386,7 @@ def _parse_failure_report(item: str, wks: str, workdir: str) -> List[Verificatio
         lines = [line.rstrip() for line in f]
 
     # scan for the stdout file for error patterns
-    details: List[Dict[str, Union[str, List[str]]]] = []
+    details: List[ErrorRecord] = []
     details.extend(_search_for_error_subgoal_failed(wks, lines))
     details.extend(_search_for_symexec_failed(wks, lines))
     details.extend(_search_for_assertion_failed(wks, lines))

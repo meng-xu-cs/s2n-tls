@@ -22,6 +22,9 @@ from bitcode import (
 )
 from prover import VerificationError, verify_all, duplicate_workspace
 
+# constants
+DEFAULT_SEED_SCORE = 1000
+
 
 class Seed(object):
     def __init__(self, name: str):
@@ -53,7 +56,7 @@ class Seed(object):
 
     def _init_score(self, delta: int) -> None:
         with open(self.path_score, "w") as f:
-            f.write(str(100 + delta))
+            f.write(str(DEFAULT_SEED_SCORE + delta))
 
     def load_and_adjust_score(self, delta: int) -> int:
         with open(self.path_score) as f:
