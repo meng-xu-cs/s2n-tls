@@ -123,7 +123,7 @@ def _search_for_error_subgoal_failed(wks: str, lines: List[str]) -> List[ErrorRe
 
 def __search_for_symexec_abort_assertion(
     wks: str, i: int, lines: List[str], error: Dict[str, ErrorRecord]
-) -> None:
+) -> int:
     # base message
     error["location"] = lines[i + 1].strip()
     category = lines[i + 2].strip()
@@ -144,14 +144,17 @@ def __search_for_symexec_abort_assertion(
             extra.append(cursor.strip())
             offset += 1
 
+        result = i + offset
+
     elif category == "Arithmetic comparison on incompatible values":
         extra.append(lines[i + 3].strip())
         extra.append(lines[i + 4].strip())
         extra.append(lines[i + 5].strip())
+        result = i + 6
 
     elif category == "Error during memory load":
         # no more information
-        pass
+        result = i + 3
 
     elif category.startswith("No override specification applies for"):
         offset = 3
@@ -201,17 +204,20 @@ def __search_for_symexec_abort_assertion(
         extra_details = lines[i + offset + 1].strip()
         extra.append(extra_details)
 
+        result = i + offset + 2
+
     else:
         raise RuntimeError(
             "Unknown category for symexec assertion failure: {}".format(category)
         )
 
     error["extra"] = extra
+    return result
 
 
 def __search_for_symexec_abort_both_branch(
     wks: str, i: int, lines: List[str], error: Dict[str, ErrorRecord]
-) -> None:
+) -> int:
     # base message
     error["location"] = lines[i + 1].strip() + lines[i + 2].strip()
 
@@ -223,10 +229,10 @@ def __search_for_symexec_abort_both_branch(
     error_t: Dict[str, ErrorRecord] = OrderedDict()
 
     if reason == "Abort due to assertion failure:":
-        __search_for_symexec_abort_assertion(wks, i + 4, lines, error_t)
+        pos = __search_for_symexec_abort_assertion(wks, i + 4, lines, error_t)
 
     elif reason == "Both branches aborted after a symbolic branch.":
-        __search_for_symexec_abort_both_branch(wks, i + 4, lines, error_t)
+        pos = __search_for_symexec_abort_both_branch(wks, i + 4, lines, error_t)
 
     else:
         raise RuntimeError(
@@ -237,13 +243,12 @@ def __search_for_symexec_abort_both_branch(
 
     # false branch messages
     j = None
-    offset = 5
-    while i + offset < len(lines):
-        cursor = lines[i + offset]
+    while pos < len(lines):
+        cursor = lines[pos]
         if cursor == "Message from the false branch:":
-            j = i + offset
+            j = pos
             break
-        offset += 1
+        pos += 1
 
     # found the location
     assert j is not None
@@ -253,10 +258,10 @@ def __search_for_symexec_abort_both_branch(
     error_f: Dict[str, ErrorRecord] = OrderedDict()
 
     if reason == "Abort due to assertion failure:":
-        __search_for_symexec_abort_assertion(wks, j + 1, lines, error_f)
+        pos = __search_for_symexec_abort_assertion(wks, j + 1, lines, error_f)
 
     elif reason == "Both branches aborted after a symbolic branch.":
-        __search_for_symexec_abort_both_branch(wks, j + 1, lines, error_f)
+        pos = __search_for_symexec_abort_both_branch(wks, j + 1, lines, error_f)
 
     else:
         raise RuntimeError(
@@ -264,6 +269,9 @@ def __search_for_symexec_abort_both_branch(
         )
 
     error["branch_f"] = error_f
+
+    # return the cursor position for the next round
+    return pos
 
 
 def _search_for_symexec_failed(wks: str, lines: List[str]) -> List[ErrorRecord]:
