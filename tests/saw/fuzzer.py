@@ -345,7 +345,8 @@ def _fuzzing_thread(tid: int) -> None:
             continue
 
         # restore back the score for the base seed if it leads to a novel seed
-        GLOBAL_STATE.update_seed_score(base_seed, 1)
+        # give it an extra mark (-1 vs +2) to further boost its chance
+        GLOBAL_STATE.update_seed_score(base_seed, 2)
 
         # in case we found a surviving mutant
         if len(new_cov) == 0:
@@ -414,6 +415,7 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     # start the fuzzing loop
     for t in threads:
         t.start()
+        time.sleep(1)  # interleave the threads
     logging.info("All fuzzing threads started")
 
     # periodically check the progress
@@ -451,6 +453,7 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
             )
             new_instance.start()
             threads.append(new_instance)
+            time.sleep(1)  # interleave the threads
 
     # stop all the threads
     for t in threads:
