@@ -313,6 +313,10 @@ def _fuzzing_thread(tid: int) -> None:
 
         # run the verification
         new_cov = verify_all(path_wks, path_saw)
+        if new_cov is None:
+            # the verification and parsing runs into an exception
+            continue
+
         logging.debug(
             "[Thread-{}]   verification completed with {} errors".format(
                 tid, len(new_cov)

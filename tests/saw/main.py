@@ -94,8 +94,9 @@ def main(argv: List[str]) -> int:
     elif args.cmd == "verify":
         if args.input == "ALL":
             errors = verify_all(config.PATH_BASE, config.PATH_WORK_SAW)
-            for entry in errors:
-                logging.warning("Verification failed with error\n{}".format(entry))
+            if errors is not None:
+                for entry in errors:
+                    logging.warning("Verification failed with error\n{}".format(entry))
         else:
             if not verify_one(config.PATH_BASE, args.input, config.PATH_WORK_SAW):
                 logging.warning("Verification failed with error\n{}".format(args.input))

@@ -1,13 +1,13 @@
 """
 SAW-related functionalities
 """
-
+import logging
 import os
 import subprocess
 import re
 import shutil
 import json
-from typing import List, Dict, Union, Any
+from typing import List, Dict, Union, Optional, Any
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
 
@@ -387,7 +387,9 @@ def _search_for_prover_unknown(wks: str, lines: List[str]) -> List[ErrorRecord]:
     return result
 
 
-def _parse_failure_report(item: str, wks: str, workdir: str) -> List[VerificationError]:
+def _parse_failure_report(
+    item: str, wks: str, workdir: str
+) -> Optional[List[VerificationError]]:
     # load the output file
     file_out = os.path.join(workdir, item + ".out")
     with open(file_out) as f:
@@ -399,7 +401,18 @@ def _parse_failure_report(item: str, wks: str, workdir: str) -> List[Verificatio
     details.extend(_search_for_symexec_failed(wks, lines))
     details.extend(_search_for_assertion_failed(wks, lines))
     details.extend(_search_for_prover_unknown(wks, lines))
-    assert len(details) != 0
+
+    if len(details) == 0:
+        file_err = os.path.join(workdir, item + ".err")
+        if os.stat(file_err).st_size == 0:
+            raise RuntimeError("No errors found in file {}".format(file_out))
+        else:
+            with open(file_err) as f:
+                lines = [line.rstrip() for line in f]
+                logging.info(
+                    "Observed error in file: {}\n{}".format(file_err, "\n".join(lines))
+                )
+                return None
 
     # convert them into verification errors
     return [VerificationError(item, entry) for entry in details]
@@ -429,6 +442,9 @@ def dump_verification_output(wks: str, workdir: str):
         # now confirmed that this is definitely a failure case
         print("  Case failed: {}".format(item))
         errors = _parse_failure_report(item, wks, workdir)
+        if errors is None:
+            continue
+
         for error in errors:
             print("    {}".format(json.dumps(asdict(error), indent=4)))
 
@@ -461,18 +477,30 @@ def verify_one(wks: str, item: str, result_dir: str) -> bool:
         return result
 
 
-def verify_all(wks: str, workdir: str) -> List[VerificationError]:
+def verify_all(wks: str, workdir: str) -> Optional[List[VerificationError]]:
     # run the verification
     all_saw_scripts = _collect_saw_scripts()
     results = [verify_one(wks, script, workdir) for script in all_saw_scripts]
 
     # collect the failure cases
     errors = []
+    has_exception = False
     for result, script in zip(results, all_saw_scripts):
-        if not result:
-            for err in _parse_failure_report(script, wks, workdir):
-                if err not in errors:
-                    errors.append(err)
+        if result:
+            continue
+
+        reports = _parse_failure_report(script, wks, workdir)
+        if reports is None:
+            has_exception = True
+            continue
+
+        for err in reports:
+            if err not in errors:
+                errors.append(err)
+
+    if has_exception:
+        return None
+
     return errors
 
 
