@@ -244,7 +244,7 @@ def __search_for_symexec_abort_both_branch(
     # false branch messages
     j = None
     while pos < len(lines):
-        cursor = lines[pos]
+        cursor = lines[pos].strip()
         if cursor == "Message from the false branch:":
             j = pos
             break
