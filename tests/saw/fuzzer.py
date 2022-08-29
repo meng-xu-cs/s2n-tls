@@ -354,7 +354,9 @@ def _fuzzing_thread(tid: int) -> None:
             continue
 
         # create a new seed and register it to the seed queue
-        new_seed = Seed.new_seed(new_trace, new_cov, novelty_marks - len(new_cov))
+        new_seed = Seed.new_seed(
+            new_trace, new_cov, novelty_marks - (len(new_cov) * 5) - len(new_trace)
+        )
         shutil.copytree(path_saw, os.path.join(new_seed.path, "output"))
         GLOBAL_STATE.add_seed(new_seed)
         logging.debug("[Thread-{}]   a new seed is added to the seed pool".format(tid))
