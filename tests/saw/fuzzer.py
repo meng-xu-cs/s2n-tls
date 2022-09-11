@@ -253,15 +253,17 @@ def _fuzzing_thread(tid: int) -> None:
         while True:
             mutation_point = random.choice(mutation_points)
 
-            # step 1: mutation point never appears in the trace
+            # step 1-1: mutation point never appears in the trace
+            # step 1-2: or if mutation point that has appeared but has other mutation rule options
             valid = True
             for step in old_trace:
                 if (
                     step.function == mutation_point.function
                     and step.instruction == mutation_point.instruction
                 ):
-                    valid = False
-                    break
+                    if not mutation_point.second_mutation:
+                        valid = False
+                        break
 
             if not valid:
                 continue
@@ -274,7 +276,6 @@ def _fuzzing_thread(tid: int) -> None:
                     mutation_point.instruction,
                 )
             )
-
             # step 2: actually produce the new mutant
             mutation_pass_replay(
                 base_seed.path_trace,

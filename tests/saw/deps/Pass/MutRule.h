@@ -21,7 +21,7 @@ namespace mutest {
 class MutRule {
 public:
   const char *name_;
-
+  const bool second_mutation = true;
 public:
   explicit MutRule(const char *name) : name_(name) {}
   virtual ~MutRule() = default;
@@ -29,6 +29,7 @@ public:
 public:
   /// Check whether this can be a mutation point
   virtual bool can_mutate(const Instruction &i) const { return false; }
+  virtual bool can_second_mutation() const { return second_mutation; }  
 
   /// Perform the mutation
   virtual Optional<json> run_mutate(Instruction &i) const {

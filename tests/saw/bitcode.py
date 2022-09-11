@@ -35,6 +35,7 @@ class MutationPoint(object):
     rule: str
     function: str
     instruction: int
+    second_mutation: bool
 
 
 @dataclass(frozen=True, eq=True, order=True)

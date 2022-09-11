@@ -8,6 +8,7 @@ namespace mutest {
 class MutRuleBinOpIntReplace : public MutRule {
 public:
   static constexpr const char *NAME = "binop-int-replace";
+  static bool const second_mutation = true;
 
 private:
   std::map<BinaryOperator::BinaryOps, std::vector<BinaryOperator::BinaryOps>>
@@ -17,6 +18,7 @@ public:
   MutRuleBinOpIntReplace() : MutRule(NAME), repl_options(getReplacements()) {}
 
 public:
+  bool can_second_mutation() const override{return second_mutation;}
   bool can_mutate(const Instruction &i) const override {
     if (!isa<BinaryOperator>(i)) {
       return false;

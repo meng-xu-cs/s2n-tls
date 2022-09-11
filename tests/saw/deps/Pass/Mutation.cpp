@@ -207,6 +207,7 @@ protected:
           for (const auto &rule : rules) {
             if (rule->can_mutate(i)) {
               json point = json::object();
+              point["second_mutation"] = rule->can_second_mutation();
               point["rule"] = rule->name_;
               point["function"] = func_name.str();
               point["instruction"] = inst_count;

@@ -8,11 +8,13 @@ namespace mutest {
 class MutRuleBranchSwap : public MutRule {
 public:
   static constexpr const char *NAME = "branch-swap";
+  static bool const second_mutation = false;
 
 public:
   MutRuleBranchSwap() : MutRule(NAME) {}
 
 public:
+  bool can_second_mutation() const override{return second_mutation;}
   bool can_mutate(const Instruction &i) const override {
     if (!isa<BranchInst>(i)) {
       return false;
