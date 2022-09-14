@@ -97,14 +97,6 @@ saw-nightly:
 	@tar xvf saw.tar.gz --strip-components=1 -C saw
 	@rsync -r -a saw/ $(TARGET_DIR)/$@
 	@rm -rf saw/ saw.tar.gz
-	@echo "Installing solver: yices"
-	@curl --retry 3 \
-		https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices-2.6.1-x86_64-pc-linux-gnu-static-gmp.tar.gz \
-		--output yices.tar.gz
-	@mkdir yices/
-	@tar xvf yices.tar.gz --strip-components=1 -C yices
-	@rsync -r -a yices/ $(TARGET_DIR)/$@
-	@rm -rf yices/ yices.tar.gz
 	@echo "Installing solver: z3"
 	@curl --retry 3 \
 		https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-4.8.8-x64-ubuntu-16.04.zip \

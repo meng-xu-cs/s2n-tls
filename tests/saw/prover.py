@@ -72,7 +72,7 @@ class VerificationError(object):
 
 def _search_for_error_subgoal_failed(wks: str, lines: List[str]) -> List[ErrorRecord]:
     error_pattern = re.compile(
-        r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?): (.+?)$"
+        r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?):$"
     )
 
     result: List[ErrorRecord] = []
@@ -95,7 +95,7 @@ def _search_for_error_subgoal_failed(wks: str, lines: List[str]) -> List[ErrorRe
         error["type"] = "subgoal failed"
         error["goal"] = goal
         error["location"] = location
-        error["message"] = message
+        error["message"] = "message"
         error_points[i] = error
 
     # proces the error
