@@ -5,7 +5,8 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_os_ostream.h>
-
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "MutRules.h"
 
 using namespace llvm;
@@ -96,6 +97,7 @@ struct MutationTestPass : public ModulePass {
       if (mutated) {
         result["changed"] = true;
         result["package"] = mutated.getValue();
+        result["additional_information"] = additional_information(i);
       } else {
         result["changed"] = false;
       }
@@ -127,7 +129,7 @@ struct MutationTestPass : public ModulePass {
         auto [rule, i] = find_rule_and_mutation_point(
             rules, m, entry["rule"].get<std::string>(),
             entry["function"].get<std::string>(),
-            entry["instruction"].get<size_t>());
+            entry["instruction"].get<size_t>());      
         rule.run_replay(i, entry["package"]);
       }
 
@@ -187,6 +189,17 @@ protected:
     }
   }
 
+  static json additional_information(Instruction &i)
+  {
+    json additional_information = json::object();
+    MDNode *metadata = i.getMetadata("dbg");
+    DILocation *debugLocation = dyn_cast<DILocation>(metadata);
+    const DebugLoc &debugLoc = DebugLoc(debugLocation);
+    additional_information["file_name"] = debugLocation->getFilename();
+    additional_information["instruction_line"] = debugLocation->getLine();
+    additional_information["instruction_col"] = debugLoc.getCol();
+    return additional_information;
+  }
   static json collect_mutation_points(const Module &m,
                                       const StringSet<MallocAllocator> &scope) {
     json mutation_points = json::array();
@@ -235,7 +248,6 @@ protected:
         if (f.getName() != target_function) {
           continue;
         }
-
         // found the function
         size_t inst_count = 0;
         for (auto &bb : f) {
@@ -244,7 +256,7 @@ protected:
             if (inst_count != target_instruction) {
               continue;
             }
-
+            outs() << "block" << bb << "\n";
             // found the instruction
             assert(rule->can_mutate(i) &&
                    "Rule cannot actually mutate the instruction");

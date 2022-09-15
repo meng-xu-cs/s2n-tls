@@ -12,6 +12,7 @@ import config
 from util import cd, execute
 from prover import collect_verified_functions
 
+from datetime import datetime
 
 def build_bitcode(clean: bool) -> None:
     if clean:
@@ -44,6 +45,7 @@ class MutationStep(object):
     function: str
     instruction: int
     package: Dict[str, Any]
+    timestamp: str
 
 
 def load_mutation_points() -> List[MutationPoint]:
@@ -168,7 +170,7 @@ def mutation_pass_test(
                     continue
 
             step = MutationStep(
-                point.rule, point.function, point.instruction, result["package"]
+                point.rule, point.function, point.instruction, result["package"], str(datetime.now()),
             )
             with open(config.PATH_WORK_BITCODE_MUTATION, "w") as f2:
                 json.dump([asdict(step)], f2, indent=4)

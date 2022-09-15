@@ -132,3 +132,11 @@ the semantics of LLVM, x86, and other SAW input languages are defined by
 translation to Crucible
 ```
 [Some explanation on how to understand spec](https://assets.amazon.science/4e/23/177acd514c799204ae22f98e193d/verified-cryptographic-code-for-everybody.pdf)
+
+
+
+Thinking:
+
+```
+
+```

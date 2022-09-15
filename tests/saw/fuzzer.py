@@ -21,7 +21,7 @@ from bitcode import (
     load_mutation_points,
 )
 from prover import VerificationError, verify_all, duplicate_workspace
-
+from datetime import datetime
 
 class Seed(object):
     def __init__(self, name: str):
@@ -297,6 +297,7 @@ def _fuzzing_thread(tid: int) -> None:
                     mutation_point.function,
                     mutation_point.instruction,
                     mutate_result["package"],
+                    str(datetime.now()),
                 )
             )
             logging.debug("[Thread-{}]   mutation applied".format(tid))
