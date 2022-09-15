@@ -3,7 +3,7 @@ FROM ubuntu:18.04
 
 # pre-requisites
 RUN apt-get update
-RUN apt-get -y upgrade
+RUN apt-get -y --fix-missing upgrade
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     software-properties-common
 RUN add-apt-repository -y \
@@ -13,13 +13,15 @@ RUN add-apt-repository -y \
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential cmake ninja-build python3.9 wget rsync unzip \
-    yices2 libssl-dev libtinfo5
+    yices2 libssl-dev libtinfo5 vim
 
 # install the cmakes
 ADD tests/saw/deps/Makefile Makefile
 RUN make cmake-3.24.1
 RUN make ninja-1.11.0
-
+RUN make clang-13.0.0
+RUN make llvm-3.9.1
+RUN make saw-nightly
 # prepare for data exchange
 VOLUME /project
 

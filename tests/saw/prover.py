@@ -1,13 +1,13 @@
 """
 SAW-related functionalities
 """
-
+import logging
 import os
 import subprocess
 import re
 import shutil
 import json
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional, Any
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
 
@@ -18,6 +18,7 @@ from util import cd, execute3
 # Preparation
 #
 
+ErrorRecord = Union[str, List[str], Dict[str, Union[str, List[str], Dict[str, Any]]]]
 
 # TODO: ideally we should not ignore any SAW scripts.
 IGNORED_TOP_LEVEL_SAW_SCRIPTS = [
@@ -66,17 +67,15 @@ def collect_verified_functions() -> List[str]:
 @dataclass(frozen=True, eq=True, order=True)
 class VerificationError(object):
     item: str
-    details: Dict[str, Union[str, List[str]]]
+    details: ErrorRecord
 
 
-def _search_for_error_subgoal_failed(
-    wks: str, lines: List[str]
-) -> List[Dict[str, Union[str, List[str]]]]:
+def _search_for_error_subgoal_failed(wks: str, lines: List[str]) -> List[ErrorRecord]:
     error_pattern = re.compile(
-        r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?): (.+?)$"
+        r"^\[\d\d:\d\d:\d\d\.\d\d\d\] Subgoal failed: (.+?) (.+?):$"
     )
 
-    result: List[Dict[str, Union[str, List[str]]]] = []
+    result: List[ErrorRecord] = []
 
     # scan for the stdout file for error patterns
     error_points = {}
@@ -92,11 +91,11 @@ def _search_for_error_subgoal_failed(
         message = match.group(3)
 
         # prepare base message
-        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error = OrderedDict()  # type: Dict[str, ErrorRecord]
         error["type"] = "subgoal failed"
         error["goal"] = goal
         error["location"] = location
-        error["message"] = message
+        error["message"] = "message"
         error_points[i] = error
 
     # proces the error
@@ -116,41 +115,96 @@ def _search_for_error_subgoal_failed(
 
         error["extra"] = extra
 
-        # done with the error parseing
+        # done with the error parsing
         result.append(error)
 
     return result
 
 
 def __search_for_symexec_abort_assertion(
-    i: int, lines: List[str], error: Dict[str, Union[str, List[str]]]
-) -> None:
+    wks: str, i: int, lines: List[str], error: Dict[str, ErrorRecord]
+) -> int:
     # base message
-    error["location"] = lines[i + 2].strip()
-    category = lines[i + 3].strip()
+    error["location"] = lines[i + 1].strip()
+    category = lines[i + 2].strip()
     error["category"] = category
 
     # look for extra details
     extra = []
 
     if category == "Global symbol not allocated":
-        assert lines[i + 4].strip() == "Details:"
-        offset = 5
+        assert lines[i + 3].strip() == "Details:"
+        indent = " " * (len(lines[i + 3]) - len(lines[i + 3].lstrip()) + 1)
+
+        offset = 4
         while i + offset < len(lines):
             cursor = lines[i + offset]
-            if not cursor.startswith(" "):
+            if not cursor.startswith(indent):
                 break
             extra.append(cursor.strip())
             offset += 1
 
+        result = i + offset
+
     elif category == "Arithmetic comparison on incompatible values":
+        extra.append(lines[i + 3].strip())
         extra.append(lines[i + 4].strip())
         extra.append(lines[i + 5].strip())
-        extra.append(lines[i + 6].strip())
+        result = i + 6
 
     elif category == "Error during memory load":
         # no more information
-        pass
+        result = i + 3
+
+    elif category.startswith("No override specification applies for"):
+        offset = 3
+        while i + offset < len(lines):
+            cursor = lines[i + offset].strip()
+            if (
+                cursor == "The following overrides had some preconditions "
+                "that failed concretely:"
+            ):
+                break
+            offset += 1
+        assert i + offset != len(lines)
+
+        extra_name = lines[i + offset + 1].strip()
+        match = re.compile(r"^- Name: (.*)$").match(extra_name)
+        assert match
+        extra_name = match.group(1)
+        extra.append(extra_name)
+
+        extra_location = lines[i + offset + 2].strip()
+        match = re.compile(r"^Location: (.*)$").match(extra_location)
+        assert match
+        extra_location = match.group(1)
+        if extra_location.startswith(wks):
+            extra_location = extra_location[len(wks) :]
+        extra.append(extra_location)
+
+        offset = offset + 3
+        while i + offset < len(lines):
+            cursor = lines[i + offset].strip()
+            if cursor.startswith("*"):
+                break
+            offset += 1
+        assert i + offset != len(lines)
+
+        match = re.compile(r"^\* (.*): error: (.*)$").match(lines[i + offset].strip())
+        assert match
+
+        extra_location = match.group(1)
+        if extra_location.startswith(wks):
+            extra_location = extra_location[len(wks) :]
+        extra.append(extra_location)
+
+        extra_error = match.group(2)
+        extra.append(extra_error)
+
+        extra_details = lines[i + offset + 1].strip()
+        extra.append(extra_details)
+
+        result = i + offset + 2
 
     else:
         raise RuntimeError(
@@ -158,64 +212,70 @@ def __search_for_symexec_abort_assertion(
         )
 
     error["extra"] = extra
+    return result
 
 
 def __search_for_symexec_abort_both_branch(
-    i: int, lines: List[str], error: Dict[str, Union[str, List[str]]]
-) -> None:
+    wks: str, i: int, lines: List[str], error: Dict[str, ErrorRecord]
+) -> int:
     # base message
-    error["location"] = lines[i + 2].strip() + lines[i + 3].strip()
+    error["location"] = lines[i + 1].strip() + lines[i + 2].strip()
 
     # true branch message
-    assert lines[i + 4].strip() == "Message from the true branch:"
-    extra_t = [
-        lines[i + 5].strip(),
-        lines[i + 6].strip(),
-        lines[i + 7].strip(),
-    ]
-    assert lines[i + 8].strip() == "Details:"
+    assert lines[i + 3].strip() == "Message from the true branch:"
+    reason = lines[i + 4].strip()
 
-    offset = 9
-    while i + offset < len(lines):
-        cursor = lines[i + offset]
-        if not cursor.startswith("      "):  # 6 spaces
-            break
-        extra_t.append(cursor.strip())
-        offset += 1
-    error["branch_t"] = extra_t
+    # look for fine-grained details
+    error_t: Dict[str, ErrorRecord] = OrderedDict()
+
+    if reason == "Abort due to assertion failure:":
+        pos = __search_for_symexec_abort_assertion(wks, i + 4, lines, error_t)
+
+    elif reason == "Both branches aborted after a symbolic branch.":
+        pos = __search_for_symexec_abort_both_branch(wks, i + 4, lines, error_t)
+
+    else:
+        raise RuntimeError(
+            "Unknown reasons for symbolic execution failure: {}".format(reason)
+        )
+
+    error["branch_t"] = error_t
 
     # false branch messages
     j = None
-    while i + offset < len(lines):
-        cursor = lines[i + offset]
+    while pos < len(lines):
+        cursor = lines[pos].strip()
         if cursor == "Message from the false branch:":
-            j = i + offset
+            j = pos
             break
-        offset += 1
+        pos += 1
 
     # found the location
     assert j is not None
-    extra_f = [
-        lines[j + 1].strip(),
-        lines[j + 2].strip(),
-        lines[j + 3].strip(),
-    ]
-    assert lines[j + 4].strip() == "Details:"
+    reason = lines[j + 1].strip()
 
-    offset = 5
-    while j + offset < len(lines):
-        cursor = lines[j + offset]
-        if not cursor.startswith("      "):  # 6 spaces
-            break
-        extra_f.append(cursor.strip())
-        offset += 1
-    error["branch_f"] = extra_f
+    # look for fine-grained details
+    error_f: Dict[str, ErrorRecord] = OrderedDict()
+
+    if reason == "Abort due to assertion failure:":
+        pos = __search_for_symexec_abort_assertion(wks, j + 1, lines, error_f)
+
+    elif reason == "Both branches aborted after a symbolic branch.":
+        pos = __search_for_symexec_abort_both_branch(wks, j + 1, lines, error_f)
+
+    else:
+        raise RuntimeError(
+            "Unknown reasons for symbolic execution failure: {}".format(reason)
+        )
+
+    error["branch_f"] = error_f
+
+    # return the cursor position for the next round
+    return pos
 
 
-def _search_for_symexec_failed(
-    lines: List[str],
-) -> List[Dict[str, Union[str, List[str]]]]:
-    result: List[Dict[str, Union[str, List[str]]]] = []
+def _search_for_symexec_failed(wks: str, lines: List[str]) -> List[ErrorRecord]:
+    result: List[ErrorRecord] = []
 
     # scan for the stdout file for error patterns
     error_points = []
@@ -226,17 +286,17 @@ def _search_for_symexec_failed(
     # parse each error points
     for i in error_points:
         # base message
-        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error = OrderedDict()  # type: Dict[str, ErrorRecord]
         error["type"] = "symbolic execution failed"
         reason = lines[i + 1].strip()
         error["reason"] = reason
 
         # look for fine-grained details
         if reason == "Abort due to assertion failure:":
-            __search_for_symexec_abort_assertion(i, lines, error)
+            __search_for_symexec_abort_assertion(wks, i + 1, lines, error)
 
         elif reason == "Both branches aborted after a symbolic branch.":
-            __search_for_symexec_abort_both_branch(i, lines, error)
+            __search_for_symexec_abort_both_branch(wks, i + 1, lines, error)
 
         else:
             raise RuntimeError(
@@ -248,13 +308,10 @@ def _search_for_symexec_failed(
     return result
 
 
-def _search_for_assertion_failed(
-    wks: str,
-    lines: List[str],
-) -> List[Dict[str, Union[str, List[str]]]]:
+def _search_for_assertion_failed(wks: str, lines: List[str]) -> List[ErrorRecord]:
     error_pattern = re.compile(r"^\s\sAssertion made at: (.+?)$")
 
-    result: List[Dict[str, Union[str, List[str]]]] = []
+    result: List[ErrorRecord] = []
 
     # scan for the stdout file for error patterns
     error_points = {}
@@ -266,7 +323,7 @@ def _search_for_assertion_failed(
 
     # look up until reaching the error message
     for i, location in error_points.items():
-        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error = OrderedDict()  # type: Dict[str, ErrorRecord]
         error["type"] = "assertion failed"
 
         offset = 1
@@ -290,12 +347,10 @@ def _search_for_assertion_failed(
     return result
 
 
-def _search_for_prover_unknown(
-    wks: str, lines: List[str]
-) -> List[Dict[str, Union[str, List[str]]]]:
+def _search_for_prover_unknown(wks: str, lines: List[str]) -> List[ErrorRecord]:
     trace_pattern = re.compile(r"^\"(.*?)\" \((.*?)\)$")
 
-    result: List[Dict[str, Union[str, List[str]]]] = []
+    result: List[ErrorRecord] = []
 
     # scan for the stdout file for error patterns
     error_points = []
@@ -305,7 +360,7 @@ def _search_for_prover_unknown(
 
     # parse each error points
     for i in error_points:
-        error = OrderedDict()  # type: Dict[str, Union[str, List[str]]]
+        error = OrderedDict()  # type: Dict[str, ErrorRecord]
         error["type"] = "prover unknown"
 
         trace = []
@@ -332,19 +387,32 @@ def _search_for_prover_unknown(
     return result
 
 
-def _parse_failure_report(item: str, wks: str, workdir: str) -> List[VerificationError]:
+def _parse_failure_report(
+    item: str, wks: str, workdir: str
+) -> Optional[List[VerificationError]]:
     # load the output file
     file_out = os.path.join(workdir, item + ".out")
     with open(file_out) as f:
         lines = [line.rstrip() for line in f]
 
     # scan for the stdout file for error patterns
-    details: List[Dict[str, Union[str, List[str]]]] = []
+    details: List[ErrorRecord] = []
     details.extend(_search_for_error_subgoal_failed(wks, lines))
-    details.extend(_search_for_symexec_failed(lines))
+    details.extend(_search_for_symexec_failed(wks, lines))
     details.extend(_search_for_assertion_failed(wks, lines))
     details.extend(_search_for_prover_unknown(wks, lines))
-    assert len(details) != 0
+
+    if len(details) == 0:
+        file_err = os.path.join(workdir, item + ".err")
+        if os.stat(file_err).st_size == 0:
+            raise RuntimeError("No errors found in file {}".format(file_out))
+        else:
+            with open(file_err) as f:
+                lines = [line.rstrip() for line in f]
+                logging.info(
+                    "Observed error in file: {}\n{}".format(file_err, "\n".join(lines))
+                )
+                return None
 
     # convert them into verification errors
     return [VerificationError(item, entry) for entry in details]
@@ -356,15 +424,27 @@ def dump_verification_output(wks: str, workdir: str):
         if not entry.endswith(".mark"):
             continue
 
-        with open(os.path.join(workdir, entry)) as f:
+        path_mark = os.path.join(workdir, entry)
+        with open(path_mark) as f:
             if f.readline().strip() == "success":
                 continue
 
-        # found a failure case
+        # found a potential failure case
         item, _ = os.path.splitext(entry)
-        print("  Case failed: {}".format(item))
 
+        # check whether this out is in next round of mutation
+        time_mark = os.path.getmtime(path_mark)
+        path_out = os.path.join(workdir, item + ".out")
+        time_out = os.path.getmtime(path_out)
+        if time_out > time_mark:
+            continue
+
+        # now confirmed that this is definitely a failure case
+        print("  Case failed: {}".format(item))
         errors = _parse_failure_report(item, wks, workdir)
+        if errors is None:
+            continue
+
         for error in errors:
             print("    {}".format(json.dumps(asdict(error), indent=4)))
 
@@ -397,18 +477,30 @@ def verify_one(wks: str, item: str, result_dir: str) -> bool:
         return result
 
 
-def verify_all(wks: str, workdir: str) -> List[VerificationError]:
+def verify_all(wks: str, workdir: str) -> Optional[List[VerificationError]]:
     # run the verification
     all_saw_scripts = _collect_saw_scripts()
     results = [verify_one(wks, script, workdir) for script in all_saw_scripts]
 
     # collect the failure cases
     errors = []
+    has_exception = False
     for result, script in zip(results, all_saw_scripts):
-        if not result:
-            for err in _parse_failure_report(script, wks, workdir):
-                if err not in errors:
-                    errors.append(err)
+        if result:
+            continue
+
+        reports = _parse_failure_report(script, wks, workdir)
+        if reports is None:
+            has_exception = True
+            continue
+
+        for err in reports:
+            if err not in errors:
+                errors.append(err)
+
+    if has_exception:
+        return None
+
     return errors
 
 

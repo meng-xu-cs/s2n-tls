@@ -23,6 +23,10 @@ from bitcode import (
 from prover import VerificationError, verify_all, duplicate_workspace
 from datetime import datetime
 
+# constants
+DEFAULT_SEED_SCORE = 1000
+
+
 class Seed(object):
     def __init__(self, name: str):
         self.name = name
@@ -53,7 +57,7 @@ class Seed(object):
 
     def _init_score(self, delta: int) -> None:
         with open(self.path_score, "w") as f:
-            f.write(str(100 + delta))
+            f.write(str(DEFAULT_SEED_SCORE + delta))
 
     def load_and_adjust_score(self, delta: int) -> int:
         with open(self.path_score) as f:
@@ -70,7 +74,9 @@ class Seed(object):
         return self.load_and_adjust_score(0)
 
     @staticmethod
-    def new_seed(trace: List[MutationStep], cov: List[VerificationError]) -> "Seed":
+    def new_seed(
+        trace: List[MutationStep], cov: List[VerificationError], delta: int
+    ) -> "Seed":
         while True:
             count = len(os.listdir(config.PATH_WORK_FUZZ_SEED_DIR))
             try:
@@ -80,7 +86,7 @@ class Seed(object):
                 )
                 seed = Seed(str(count))
                 # the more errors in it, the lower its score
-                seed._init_score(-len(cov))
+                seed._init_score(delta)
                 seed._save_trace(trace)
                 seed._save_cov(cov)
                 return seed
@@ -92,12 +98,12 @@ class Seed(object):
         while True:
             count = len(os.listdir(config.PATH_WORK_FUZZ_SURVIVAL_DIR))
             try:
-                os.makedirs(
-                    os.path.join(config.PATH_WORK_FUZZ_SURVIVAL_DIR, str(count)),
-                    exist_ok=False,
-                )
-                seed = Seed(str(count))
-                seed._save_trace(trace)
+                path_item = os.path.join(config.PATH_WORK_FUZZ_SURVIVAL_DIR, str(count))
+                os.makedirs(path_item, exist_ok=False)
+                path_trace = os.path.join(path_item, "trace.json")
+                with open(path_trace, "w") as f:
+                    jobj = [asdict(item) for item in trace]
+                    json.dump(jobj, f, indent=4)
 
                 # done with the saving
                 break
@@ -312,6 +318,10 @@ def _fuzzing_thread(tid: int) -> None:
 
         # run the verification
         new_cov = verify_all(path_wks, path_saw)
+        if new_cov is None:
+            # the verification and parsing runs into an exception
+            continue
+
         logging.debug(
             "[Thread-{}]   verification completed with {} errors".format(
                 tid, len(new_cov)
@@ -335,12 +345,10 @@ def _fuzzing_thread(tid: int) -> None:
         )
         novelty_marks += cov_addition
 
-        # this is a boring case, ignore it
-        if novelty_marks == 0:
-            continue
-
-        # restore back the score for the base seed if it leads to a novel seed
-        GLOBAL_STATE.update_seed_score(base_seed, 1)
+        # if the current seed leads to novel discoveries
+        if novelty_marks != 0:
+            # give it an extra mark (-1 vs +2) to further boost its chance
+            GLOBAL_STATE.update_seed_score(base_seed, 2)
 
         # in case we found a surviving mutant
         if len(new_cov) == 0:
@@ -349,7 +357,10 @@ def _fuzzing_thread(tid: int) -> None:
             continue
 
         # create a new seed and register it to the seed queue
-        new_seed = Seed.new_seed(new_trace, new_cov)
+        new_seed = Seed.new_seed(
+            new_trace, new_cov, novelty_marks - (len(new_cov) * 5) - len(new_trace)
+        )
+        shutil.copytree(path_saw, os.path.join(new_seed.path, "output"))
         GLOBAL_STATE.add_seed(new_seed)
         logging.debug("[Thread-{}]   a new seed is added to the seed pool".format(tid))
 
@@ -378,8 +389,10 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     # deposit the base seed if needed
     path_seed_zero = os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, "0")
     if not os.path.exists(path_seed_zero):
-        # base seed has no errors and no mutation trace
-        Seed.new_seed([], [])
+        # base seed has no errors, no mutation trace, and a boosted score proportional
+        # to the number of mutation points
+        mutation_points = load_mutation_points()
+        Seed.new_seed([], [], int(len(mutation_points) / 4))
 
     # prepare the seed queue and coverage map based on existing seeds
     logging.info(
@@ -408,6 +421,7 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     # start the fuzzing loop
     for t in threads:
         t.start()
+        time.sleep(1)  # interleave the threads
     logging.info("All fuzzing threads started")
 
     # periodically check the progress
@@ -445,6 +459,7 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
             )
             new_instance.start()
             threads.append(new_instance)
+            time.sleep(1)  # interleave the threads
 
     # stop all the threads
     for t in threads:

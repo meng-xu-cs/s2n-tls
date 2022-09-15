@@ -94,8 +94,9 @@ def main(argv: List[str]) -> int:
     elif args.cmd == "verify":
         if args.input == "ALL":
             errors = verify_all(config.PATH_BASE, config.PATH_WORK_SAW)
-            for entry in errors:
-                logging.warning("Verification failed with error\n{}".format(entry))
+            if errors is not None:
+                for entry in errors:
+                    logging.warning("Verification failed with error\n{}".format(entry))
         else:
             if not verify_one(config.PATH_BASE, args.input, config.PATH_WORK_SAW):
                 logging.warning("Verification failed with error\n{}".format(args.input))
@@ -140,6 +141,15 @@ def main(argv: List[str]) -> int:
                         config.PATH_WORK_FUZZ_THREAD_DIR, instance, "saw"
                     )
                     dump_verification_output(wks, workdir)
+            elif args.base == "SEED":
+                for instance in sorted(os.listdir(config.PATH_WORK_FUZZ_SEED_DIR)):
+                    if instance == "0":
+                        continue
+
+                    workdir = os.path.join(
+                        config.PATH_WORK_FUZZ_SEED_DIR, instance, "output"
+                    )
+                    dump_verification_output(config.PATH_WORK_FUZZ_THREAD_DIR, workdir)
             else:
                 wks = os.path.join(config.PATH_WORK_FUZZ_THREAD_DIR, args.base, "wks")
                 workdir = os.path.join(
