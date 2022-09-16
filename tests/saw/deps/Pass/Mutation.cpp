@@ -256,7 +256,6 @@ protected:
             if (inst_count != target_instruction) {
               continue;
             }
-            outs() << "block" << bb << "\n";
             // found the instruction
             assert(rule->can_mutate(i) &&
                    "Rule cannot actually mutate the instruction");

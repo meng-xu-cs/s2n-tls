@@ -88,7 +88,7 @@ def _search_for_error_subgoal_failed(wks: str, lines: List[str]) -> List[ErrorRe
         location = match.group(2)
         if location.startswith(wks):
             location = location[len(wks) :]
-        message = match.group(3)
+        #message = match.group(3)
 
         # prepare base message
         error = OrderedDict()  # type: Dict[str, ErrorRecord]
