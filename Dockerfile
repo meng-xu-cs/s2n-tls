@@ -13,7 +13,10 @@ RUN add-apt-repository -y \
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential cmake ninja-build python3.9 wget rsync unzip \
-    yices2 libssl-dev libtinfo5 vim
+    yices2 libssl-dev libtinfo5 vim curl python3-pip
+
+# install pip dependencies
+RUN pip3 install dataclasses
 
 # install the cmakes
 ADD tests/saw/deps/Makefile Makefile
