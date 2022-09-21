@@ -7,6 +7,10 @@
 #include <llvm/Support/raw_os_ostream.h>
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/Module.h"
 #include "MutRules.h"
 
 using namespace llvm;
@@ -97,7 +101,7 @@ struct MutationTestPass : public ModulePass {
       if (mutated) {
         result["changed"] = true;
         result["package"] = mutated.getValue();
-        result["additional_information"] = additional_information(i);
+         result["additional_information"] = additional_information(i);
       } else {
         result["changed"] = false;
       }
@@ -193,7 +197,10 @@ protected:
   {
     json additional_information = json::object();
     MDNode *metadata = i.getMetadata("dbg");
-    DILocation *debugLocation = dyn_cast<DILocation>(metadata);
+    if(metadata == 0x0){
+        return additional_information["null"] = std::string("null");
+    }
+    const DILocation *debugLocation = dyn_cast<DILocation>(metadata);
     const DebugLoc &debugLoc = DebugLoc(debugLocation);
     additional_information["file_name"] = debugLocation->getFilename();
     additional_information["instruction_line"] = debugLocation->getLine();
