@@ -451,7 +451,7 @@ def dump_verification_output(wks: str, workdir: str):
 
 
 def verify_one(wks: str, item: str, result_dir: str) -> bool:
-    print("Verifying " + item)
+    os.makedirs(wks, exist_ok=True)
     file_out = os.path.join(result_dir, item + ".out")
     file_err = os.path.join(result_dir, item + ".err")
     file_log = os.path.join(result_dir, item + ".log")
