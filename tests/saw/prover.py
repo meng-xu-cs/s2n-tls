@@ -23,7 +23,8 @@ ErrorRecord = Union[str, List[str], Dict[str, Union[str, List[str], Dict[str, An
 # TODO: ideally we should not ignore any SAW scripts.
 IGNORED_TOP_LEVEL_SAW_SCRIPTS = [
     # ignored because of lengthy and nondeterministic verification
-    "verify_imperative_cryptol_spec.saw"
+    "verify_imperative_cryptol_spec.saw",
+    "verify_HMAC.saw",
 ]
 
 
@@ -450,13 +451,15 @@ def dump_verification_output(wks: str, workdir: str):
 
 
 def verify_one(wks: str, item: str, result_dir: str) -> bool:
-    os.makedirs(os.path.dirname(result_dir), exist_ok=True)
+    print("Verifying " + item)
     file_out = os.path.join(result_dir, item + ".out")
     file_err = os.path.join(result_dir, item + ".err")
     file_log = os.path.join(result_dir, item + ".log")
     file_mark = os.path.join(result_dir, item + ".mark")
 
     with cd(wks):
+        os.makedirs(result_dir, exist_ok=True)
+
         try:
             execute3(
                 ["saw", "-v", "debug", "-s", file_log, "-f", "json", item],

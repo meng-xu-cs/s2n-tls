@@ -24,6 +24,7 @@ from prover import VerificationError, verify_all, duplicate_workspace
 
 # constants
 DEFAULT_SEED_SCORE = 1000
+DEFAULT_INIT_ROUND = 3
 
 
 class Seed(object):
@@ -108,6 +109,20 @@ class Seed(object):
                 break
             except FileExistsError:
                 pass
+
+
+class BootstrapProcess(object):
+    def __init__(self) -> None:
+        self.lock = Lock()
+        # R/W accesses to the rest requires lock
+        self.index = 0
+
+    def next_index(self) -> int:
+        self.lock.acquire()
+        result = self.index
+        self.index += 1
+        self.lock.release()
+        return result
 
 
 class GlobalState(object):
@@ -202,6 +217,113 @@ class GlobalState(object):
 #
 
 GLOBAL_STATE = GlobalState()
+BOOTSTRAP_PROCESS = BootstrapProcess()
+
+
+def _bootstrap_thread(tid: int) -> None:
+    global BOOTSTRAP_PROCESS
+
+    # load the mutation points
+    mutation_points = load_mutation_points()
+
+    # workspace preparation
+    path_instance = os.path.join(
+        config.PATH_WORK_FUZZ_THREAD_DIR, "bootstrap", str(tid)
+    )
+    os.makedirs(path_instance, exist_ok=True)
+
+    path_saw = os.path.join(path_instance, "saw")
+    os.makedirs(path_saw, exist_ok=True)
+
+    # copy over the related files for verification
+    path_wks = os.path.join(path_instance, "wks")
+    os.makedirs(path_saw, exist_ok=True)
+    duplicate_workspace(path_wks)
+
+    # other important files
+    path_all_llvm_bc = os.path.join(path_wks, "bitcode", "all_llvm.bc")
+    path_mutation_record = os.path.join(path_instance, "mutate_record.json")
+    path_mutation_result = os.path.join(path_instance, "mutate_result.json")
+
+    while True:
+        # acquire the next mutation index:
+        index = BOOTSTRAP_PROCESS.next_index()
+        if index >= len(mutation_points):
+            # termination result
+            return
+
+        mutation_point = mutation_points[index]
+        logging.debug(
+            "[Thread-{}] ({}/{}) processing mutation: {} on {}::{}".format(
+                tid,
+                index,
+                len(mutation_points),
+                mutation_point.rule,
+                mutation_point.function,
+                mutation_point.instruction,
+            )
+        )
+
+        # try mutating this point for several rounds
+        prior_traces = []
+        for trial in range(DEFAULT_INIT_ROUND):
+            # apply the mutation
+            mutation_pass_mutate(
+                mutation_point,
+                path_mutation_result,
+                config.PATH_WORK_BITCODE_ALL_LLVM,
+                path_all_llvm_bc,
+            )
+            with open(path_mutation_result) as f:
+                mutate_result = json.load(f)
+
+            new_trace = [
+                MutationStep(
+                    mutation_point.rule,
+                    mutation_point.function,
+                    mutation_point.instruction,
+                    mutate_result["package"],
+                )
+            ]
+            logging.debug(
+                "[Thread-{}]   trial: {} - mutation applied".format(trial, tid)
+            )
+
+            # check for duplication, as some passes do not support multi-mutation
+            if new_trace in prior_traces:
+                logging.debug(
+                    "[Thread-{}]   trial: {} - mutation duplicated".format(trial, tid)
+                )
+                continue
+
+            prior_traces.append(new_trace)
+
+            # save a record of the new trace
+            with open(path_mutation_record, "w") as f:
+                json.dump([asdict(point) for point in new_trace], f, indent=4)
+
+            # run the verification
+            new_cov = verify_all(path_wks, path_saw)
+            if new_cov is None:
+                # the verification and parsing run into an exception
+                continue
+
+            logging.debug(
+                "[Thread-{}]    trial: {} - verification completed "
+                "with {} errors".format(tid, trial, len(new_cov))
+            )
+
+            # in case we found a surviving mutant
+            if len(new_cov) == 0:
+                logging.warning("Surviving mutant found")
+                Seed.save_survival(new_trace)
+                continue
+
+            # create a new seed
+            Seed.new_seed(new_trace, new_cov, -((len(new_cov) * 5) + len(new_trace)))
+            logging.debug(
+                "[Thread-{}]   a new seed is added to the seed pool".format(tid)
+            )
 
 
 def _fuzzing_thread(tid: int) -> None:
@@ -357,7 +479,6 @@ def _fuzzing_thread(tid: int) -> None:
         new_seed = Seed.new_seed(
             new_trace, new_cov, novelty_marks - (len(new_cov) * 5) - len(new_trace)
         )
-        shutil.copytree(path_saw, os.path.join(new_seed.path, "output"))
         GLOBAL_STATE.add_seed(new_seed)
         logging.debug("[Thread-{}]   a new seed is added to the seed pool".format(tid))
 
@@ -367,6 +488,7 @@ def _fuzzing_thread(tid: int) -> None:
 
 def fuzz_start(clean: bool, num_threads: int) -> None:
     global GLOBAL_STATE
+    global BOOTSTRAP_PROCESS
 
     # do a clean-up if requested
     if clean:
@@ -386,10 +508,40 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     # deposit the base seed if needed
     path_seed_zero = os.path.join(config.PATH_WORK_FUZZ_SEED_DIR, "0")
     if not os.path.exists(path_seed_zero):
-        # base seed has no errors, no mutation trace, and a boosted score proportional
-        # to the number of mutation points
+        # base seed has no errors, no mutation trace, and a reduced score
+        # proportional to the number of mutation points
         mutation_points = load_mutation_points()
-        Seed.new_seed([], [], int(len(mutation_points) / 4))
+        Seed.new_seed([], [], -int(len(mutation_points) / 4))
+
+        # do the bootstrapping if we don't have the zero seed yet
+        logging.info("Bootstrapping in progress")
+
+        # prepare the threads
+        threads = [
+            Thread(target=_bootstrap_thread, args=(i,), daemon=True)
+            for i in range(num_threads)
+        ]
+
+        # start the bootstrapping loop
+        for t in threads:
+            t.start()
+            time.sleep(1)  # interleave the threads
+        logging.info("All bootstrapping threads started")
+
+        # periodically check the progress
+        while True:
+            time.sleep(60)
+
+            # check how many threads are still alive
+            alive_count = 0
+            for t in threads:
+                if t.is_alive():
+                    alive_count += 1
+            logging.info("Instances alive: {} / {}".format(alive_count, len(threads)))
+
+            # break the loop when all threads are done
+            if alive_count == 0:
+                break
 
     # prepare the seed queue and coverage map based on existing seeds
     logging.info(
