@@ -286,13 +286,13 @@ def _bootstrap_thread(tid: int) -> None:
                 )
             ]
             logging.debug(
-                "[Thread-{}]   trial: {} - mutation applied".format(trial, tid)
+                "[Thread-{}]   trial: {} - mutation applied".format(tid, trial)
             )
 
             # check for duplication, as some passes do not support multi-mutation
             if new_trace in prior_traces:
                 logging.debug(
-                    "[Thread-{}]   trial: {} - mutation duplicated".format(trial, tid)
+                    "[Thread-{}]   trial: {} - mutation duplicated".format(tid, trial)
                 )
                 continue
 
