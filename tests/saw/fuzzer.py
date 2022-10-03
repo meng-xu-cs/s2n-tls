@@ -117,6 +117,12 @@ class BootstrapProcess(object):
         # R/W accesses to the rest requires lock
         self.index = 0
 
+    def current_index(self) -> int:
+        self.lock.acquire()
+        result = self.index
+        self.lock.release()
+        return result
+
     def next_index(self) -> int:
         self.lock.acquire()
         result = self.index
@@ -486,6 +492,18 @@ def _fuzzing_thread(tid: int) -> None:
     logging.info("[Thread-{}] Fuzzing stopped".format(tid))
 
 
+def _remove_core_dumps() -> None:
+    core_dumps = []
+    for root, _, files in os.walk(config.PATH_WORK):
+        for name in files:
+            if name == "core":
+                core_dumps.append(os.path.join(root, name))
+
+    for core_path in core_dumps:
+        logging.error("Removing a core dump: {}".format(core_path))
+        os.unlink(core_path)
+
+
 def fuzz_start(clean: bool, num_threads: int) -> None:
     global GLOBAL_STATE
     global BOOTSTRAP_PROCESS
@@ -532,6 +550,9 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
         while True:
             time.sleep(60)
 
+            # clear-up disk
+            _remove_core_dumps()
+
             # check how many threads are still alive
             alive_count = 0
             for t in threads:
@@ -539,8 +560,19 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
                     alive_count += 1
             logging.info("Instances alive: {} / {}".format(alive_count, len(threads)))
 
+            # check if we are still in the middle of bootstrapping
+            if BOOTSTRAP_PROCESS.current_index() < len(mutation_points):
+                # create a new thread for each thread that is accidentally dead
+                for k in range(num_threads - alive_count):
+                    new_instance = Thread(
+                        target=_bootstrap_thread, args=(len(threads) + k,), daemon=True
+                    )
+                    new_instance.start()
+                    threads.append(new_instance)
+                    time.sleep(1)  # interleave the threads
+
             # break the loop when all threads are done
-            if alive_count == 0:
+            elif alive_count == 0:
                 break
 
     # prepare the seed queue and coverage map based on existing seeds
@@ -576,6 +608,9 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     # periodically check the progress
     while True:
         time.sleep(60)
+
+        # clear-up disk
+        _remove_core_dumps()
 
         # periodically refresh the coverage map
         GLOBAL_STATE.dump_cov()
