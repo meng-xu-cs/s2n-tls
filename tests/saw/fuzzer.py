@@ -481,6 +481,10 @@ def _fuzzing_thread(tid: int) -> None:
             Seed.save_survival(new_trace)
             continue
 
+        # if this new seed is not interesting, ignore it
+        if novelty_marks == 0:
+            continue
+
         # create a new seed and register it to the seed queue
         new_seed = Seed.new_seed(
             new_trace, new_cov, novelty_marks - (len(new_cov) * 5) - len(new_trace)
