@@ -60,6 +60,20 @@ def collect_verified_functions() -> List[str]:
     return sorted(verified_functions)
 
 
+def _strip_out_wks_from_loc(loc: str, wks: str) -> str:
+    if loc.startswith(wks):
+        return loc[len(wks) :]
+
+    if loc.startswith("/") and loc[1:].startswith(wks):
+        return loc[1 + len(wks) :]
+
+    if wks in loc:
+        needle = loc.find(wks)
+        return loc[needle + len(wks) :]
+
+    return loc
+
+
 #
 # Verification
 #
@@ -87,8 +101,7 @@ def _search_for_error_subgoal_failed(wks: str, lines: List[str]) -> List[ErrorRe
 
         goal = match.group(1)
         location = match.group(2)
-        if location.startswith(wks):
-            location = location[len(wks) :]
+        location = _strip_out_wks_from_loc(location, wks)
         message = match.group(3)
 
         # prepare base message
@@ -179,8 +192,7 @@ def __search_for_symexec_abort_assertion(
         match = re.compile(r"^Location: (.*)$").match(extra_location)
         assert match
         extra_location = match.group(1)
-        if extra_location.startswith(wks):
-            extra_location = extra_location[len(wks) :]
+        extra_location = _strip_out_wks_from_loc(extra_location, wks)
         extra.append(extra_location)
 
         offset = offset + 3
@@ -195,8 +207,7 @@ def __search_for_symexec_abort_assertion(
         assert match
 
         extra_location = match.group(1)
-        if extra_location.startswith(wks):
-            extra_location = extra_location[len(wks) :]
+        extra_location = _strip_out_wks_from_loc(extra_location, wks)
         extra.append(extra_location)
 
         extra_error = match.group(2)
@@ -335,8 +346,7 @@ def _search_for_assertion_failed(wks: str, lines: List[str]) -> List[ErrorRecord
                 error["message"] = message
 
                 # strip out the prefix of the location
-                if location.startswith(wks):
-                    location = location[len(wks) :]
+                location = _strip_out_wks_from_loc(location, wks)
                 error["location"] = location
                 break
 
@@ -375,8 +385,7 @@ def _search_for_prover_unknown(wks: str, lines: List[str]) -> List[ErrorRecord]:
             assert match
             function = match.group(1)
             location = match.group(2)
-            if location.startswith(wks):
-                location = location[len(wks) :]
+            location = _strip_out_wks_from_loc(location, wks)
 
             trace.append("{} @ {}".format(function, location))
             offset += 1

@@ -470,16 +470,17 @@ def _fuzzing_thread(tid: int) -> None:
         )
         novelty_marks += cov_addition
 
-        # if the current seed leads to novel discoveries
-        if novelty_marks != 0:
-            # give it an extra mark (-1 vs +2) to further boost its chance
-            GLOBAL_STATE.update_seed_score(base_seed, 2)
-
         # in case we found a surviving mutant
+        # NOTE: this will also short-circuit the update on the seed score
         if len(new_cov) == 0:
             logging.warning("Surviving mutant found")
             Seed.save_survival(new_trace)
             continue
+
+        # if the current seed leads to novel discoveries
+        if novelty_marks != 0:
+            # give it an extra mark (-1 vs +2) to further boost its chance
+            GLOBAL_STATE.update_seed_score(base_seed, 2)
 
         # if this new seed is not interesting, ignore it
         if novelty_marks == 0:
