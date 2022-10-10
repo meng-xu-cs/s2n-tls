@@ -4,7 +4,7 @@
 #include <map>
 #include <random>
 #include <vector>
-
+#include <string>
 #include "json.hpp"
 using json = nlohmann::json;
 
@@ -30,7 +30,7 @@ public:
   /// Check whether this can be a mutation point
   virtual bool can_mutate(const Instruction &i) const { return false; }
   virtual bool can_second_mutation() const { return second_mutation; }  
-
+  virtual std::string  origin_mutate(const Instruction &i) const {return std::string("");}
   /// Perform the mutation
   virtual Optional<json> run_mutate(Instruction &i) const {
     return Optional<json>();

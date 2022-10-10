@@ -45,6 +45,19 @@ public:
     return !const_positions.empty();
   }
 
+  std::string origin_mutate(const Instruction &i) const override{
+    // record the operand for all the operands
+    std::vector<size_t> const_positions;
+    collectConstantOperands(&i, const_positions);
+    std::string origin_value = std::string("");
+    for (auto & position: const_positions){
+      const auto *operand = cast<ConstantInt>(i.getOperand(position));
+      const auto &const_value = operand->getValue();
+        origin_value.append(const_value.toString(10, true));
+	origin_value.append(" ");
+    }
+    return origin_value;
+  }
   Optional<json> run_mutate(Instruction &i) const override {
     // collect the operand number
     std::vector<size_t> const_positions;

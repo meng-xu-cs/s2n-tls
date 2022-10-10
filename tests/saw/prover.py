@@ -23,7 +23,8 @@ ErrorRecord = Union[str, List[str], Dict[str, Union[str, List[str], Dict[str, An
 # TODO: ideally we should not ignore any SAW scripts.
 IGNORED_TOP_LEVEL_SAW_SCRIPTS = [
     # ignored because of lengthy and nondeterministic verification
-    "verify_imperative_cryptol_spec.saw"
+    "verify_imperative_cryptol_spec.saw",
+    "verify_HMAC.saw"
 ]
 
 

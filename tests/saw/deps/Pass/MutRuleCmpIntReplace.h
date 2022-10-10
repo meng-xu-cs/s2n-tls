@@ -32,6 +32,15 @@ public:
            predicate <= CmpInst::LAST_ICMP_PREDICATE;
   }
 
+  std::string origin_mutate(const Instruction &i) const override {
+    if (!isa<ICmpInst>(i)){
+      return std::string("");
+    }
+    const auto &cmp_inst = cast<ICmpInst>(i);
+    const auto predicate = cmp_inst.getPredicate();
+    return intoPredicateName(predicate);
+   }
+
   Optional<json> run_mutate(Instruction &i) const override {
     auto &cmp_inst = cast<ICmpInst>(i);
     const auto predicate = cmp_inst.getPredicate();

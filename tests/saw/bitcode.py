@@ -37,8 +37,8 @@ class MutationPoint(object):
     function: str
     instruction: int
     second_mutation: bool
-
-
+    instruction_line: int
+    origin_mutate: str
 @dataclass(frozen=True, eq=True, order=True)
 class MutationStep(object):
     rule: str
@@ -46,6 +46,7 @@ class MutationStep(object):
     instruction: int
     package: Dict[str, Any]
     timestamp: str
+    second_mutation: bool
 
 
 def load_mutation_points() -> List[MutationPoint]:
@@ -170,7 +171,7 @@ def mutation_pass_test(
                     continue
 
             step = MutationStep(
-                point.rule, point.function, point.instruction, result["package"], str(datetime.now()),
+                point.rule, point.function, point.instruction, result["package"], str(datetime.now()), point.second_mutation
             )
             with open(config.PATH_WORK_BITCODE_MUTATION, "w") as f2:
                 json.dump([asdict(step)], f2, indent=4)

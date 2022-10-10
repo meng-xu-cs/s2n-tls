@@ -258,14 +258,10 @@ def _fuzzing_thread(tid: int) -> None:
             # step 1-2: or if mutation point that has appeared but has other mutation rule options
             valid = True
             for step in old_trace:
-                if (
-                    step.function == mutation_point.function
-                    and step.instruction == mutation_point.instruction
-                ):
-                    if not mutation_point.second_mutation:
-                        valid = False
-                        break
-
+                if not (step.function == mutation_point.function and step.instruction == mutation_point.instruction):
+                    valid = False
+                    break
+                
             if not valid:
                 continue
 
@@ -293,6 +289,9 @@ def _fuzzing_thread(tid: int) -> None:
             with open(path_mutation_result) as f:
                 mutate_result = json.load(f)
 
+            for step in old_trace:
+                if step.package == mutate_result["package"]:
+                    continue
             # this might be just paranoid, but just ensure that the mutation is applied
             if not mutate_result["changed"]:
                 continue
@@ -304,6 +303,7 @@ def _fuzzing_thread(tid: int) -> None:
                     mutation_point.instruction,
                     mutate_result["package"],
                     str(datetime.now()),
+                    mutation_point.second_mutation,
                 )
             )
             logging.debug("[Thread-{}]   mutation applied".format(tid))
@@ -351,7 +351,7 @@ def _fuzzing_thread(tid: int) -> None:
             GLOBAL_STATE.update_seed_score(base_seed, 2)
 
         # in case we found a surviving mutant
-        if len(new_cov) == 0:
+        if len(new_cov) == 0 or not new_trace[0].second_mutation:
             logging.warning("Surviving mutant found")
             Seed.save_survival(new_trace)
             continue
@@ -367,6 +367,16 @@ def _fuzzing_thread(tid: int) -> None:
     # on halt
     logging.info("[Thread-{}] Fuzzing stopped".format(tid))
 
+def _remove_core_dumps() -> None:
+    core_dumps = []
+    for root, _, files in os.walk(config.PATH_WORK):
+        for name in files:
+            if name == "core":
+                core_dumps.append(os.path.join(root, name))
+
+    for core_path in core_dumps:
+        logging.error("Removing a core dump: {}".format(core_path))
+        os.unlink(core_path)
 
 def fuzz_start(clean: bool, num_threads: int) -> None:
     global GLOBAL_STATE
@@ -427,7 +437,7 @@ def fuzz_start(clean: bool, num_threads: int) -> None:
     # periodically check the progress
     while True:
         time.sleep(60)
-
+        _remove_core_dumps()
         # periodically refresh the coverage map
         GLOBAL_STATE.dump_cov()
 

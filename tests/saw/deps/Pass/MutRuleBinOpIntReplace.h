@@ -46,6 +46,14 @@ public:
       return false;
     }
   }
+  std::string origin_mutate(const Instruction &i) const override {
+    if (!isa<BinaryOperator>(i)){
+      return std::string("");
+    }
+    const auto &bin_inst = cast<BinaryOperator>(i);
+    return intoOpcodeName(bin_inst.getOpcode());
+  
+  }
 
   Optional<json> run_mutate(Instruction &i) const override {
     auto &bin_inst = cast<BinaryOperator>(i);

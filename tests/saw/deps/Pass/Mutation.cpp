@@ -218,19 +218,31 @@ protected:
       if (scope.find(func_name) == scope.end()) {
         continue;
       }
-
+      
+      
       // assign each instruction a unique counter value
       size_t inst_count = 0;
       for (const auto &bb : f) {
         for (const auto &i : bb) {
           inst_count += 1; // inst_count can never be 0
+          MDNode *metadata = i.getMetadata("dbg");
+          
           for (const auto &rule : rules) {
             if (rule->can_mutate(i)) {
               json point = json::object();
               point["second_mutation"] = rule->can_second_mutation();
+	      point["origin_mutate"] = rule->origin_mutate(i);
               point["rule"] = rule->name_;
               point["function"] = func_name.str();
               point["instruction"] = inst_count;
+              if (point["function"] ==std::string("s2n_drbg_instantiate") && point["instruction"] == 102){
+                  errs() << "instruction here !!" << i << "\n";
+              }
+              if (metadata != 0x0){
+                  DILocation *debugLocation = dyn_cast<DILocation>(metadata);
+                  const DebugLoc &debugLoc = DebugLoc(debugLocation);
+                  point["instruction_line"] = debugLocation->getLine();
+              }
               mutation_points.push_back(point);
             }
           }
