@@ -98,9 +98,9 @@ public:
       // append the original value in history  
       if (flag == false){
         std::vector<std::string> v = {old_val->toString()};
-	auto object = json::object();
-	object["Function"] = function_count;
-	object["Instruction"] = inst_count;
+        auto object = json::object();
+        object["Function"] = function_count;
+        object["Instruction"] = inst_count;
         object["Operand"] = choice;
         object["history"] = v;	
         data.push_back(object);
@@ -134,10 +134,6 @@ public:
 
       // now create the new constant
       new_val = ConstantInt::get(i.getContext(), result);
-
-      // done with the mutation
-      break;
-    }
     // If flag == true, 
     if (flag == true){
       for(auto& element:data){
@@ -148,6 +144,10 @@ public:
       std::ofstream o(constant_file);
       o << std::setw(4) << data << std::endl;
     }
+      // done with the mutation
+      break;
+    }
+
     // now set the operand to be a new value
     i.setOperand(choice, new_val);
 
