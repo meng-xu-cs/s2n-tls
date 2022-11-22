@@ -97,7 +97,7 @@ public:
       // If flag = false which means there is no history record in this file yet, 
       // append the original value in history  
       if (flag == false){
-        std::vector<std::string> v = {old_val->toString()};
+        std::vector<std::string> v = {old_val.getZExtValue()};
         auto object = json::object();
         object["Function"] = function_count;
         object["Instruction"] = inst_count;
@@ -138,7 +138,7 @@ public:
     if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
-          element["history"].push_back(result.toString());
+          element["history"].push_back(result.getZExtValue());
       } 
       }
       std::ofstream o(constant_file);
