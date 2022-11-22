@@ -32,7 +32,6 @@ public:
   virtual bool can_second_mutation() const { return second_mutation; }  
   virtual std::string  origin_mutate(const Instruction &i) const {return std::string("");}
   /// Record all the mutated values
-  virtual 
   /// Perform the mutation
   virtual Optional<json> run_mutate(Instruction &i, std::string function_count, std::string inst_count) const {
     return Optional<json>();
