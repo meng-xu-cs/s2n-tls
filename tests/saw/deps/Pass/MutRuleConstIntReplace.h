@@ -96,7 +96,7 @@ public:
       } 
       // If flag = false which means there is no history record in this file yet, 
       // append the original value in history  
-      std::vector<int> v;
+      std::vector<uint64_t> v;
       if (flag == false){
         std::vector<int> v = {old_val.getZExtValue()};
         auto object = json::object();
@@ -127,7 +127,7 @@ public:
       if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
-          if (std::find(element["history"].begin(), element["history"].end(), result.getZExtValue()) != element['history'].end())
+          if (std::find(element["history"].begin(), element["history"].end(), result.getZExtValue()) != element["history"].end())
           {
             continue;
           }

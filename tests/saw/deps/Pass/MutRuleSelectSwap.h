@@ -18,7 +18,7 @@ public:
     return isa<SelectInst>(i);
   }
 
-  Optional<json> run_mutate(Instruction &i) const override {
+  Optional<json> run_mutate(Instruction &i, std::string function_count, std::string inst_count) const override {
     auto &sel_inst = cast<SelectInst>(i);
     swapValues(sel_inst);
     return json::object();
