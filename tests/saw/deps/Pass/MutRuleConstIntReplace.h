@@ -91,7 +91,7 @@ public:
     // Iterate through the json object
     for(auto& element: data){
     // Use something that belongs to the instruction to identify it
-      if(element["function"] =  && element["Instruction"] == i && element["Operand"] == choice) {
+      if(element["Function"] ==function_count  && element["Instruction"] == inst_count && element["Operand"] == choice) {
         flag = true;
       } 
       // If flag = false which means there is no history record in this file yet, 
@@ -118,7 +118,7 @@ public:
       }
       if (flag == true){
       for(auto& element:data){
-        if(element["Instruction"] == Instruction && element["Operand"] == choice) {
+        if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
           if (std::find(element["history"].begin(), element["history"].end(), result) != v.end())
           {
             continue;
@@ -136,7 +136,7 @@ public:
     // If flag == true, 
     if (flag == true){
       for(auto& element:data){
-        if(element["Instruction"] == Instruction && element["Operand"] == choice) {
+        if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
           element["history"].push_back(result);
       } 
       }
