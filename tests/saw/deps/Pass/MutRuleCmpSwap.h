@@ -24,7 +24,7 @@ public:
     return !cmp_inst.isCommutative();
   }
 
-  Optional<json> run_mutate(Instruction &i) const override {
+  Optional<json> run_mutate(Instruction &i,std::string function_count, std::string inst_count) const override {
     auto &cmp_inst = cast<CmpInst>(i);
     cmp_inst.swapOperands();
     return json::object();

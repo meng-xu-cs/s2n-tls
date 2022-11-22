@@ -55,7 +55,7 @@ public:
   
   }
 
-  Optional<json> run_mutate(Instruction &i) const override {
+  Optional<json> run_mutate(Instruction &i, std::string function_count, std::string inst_count ) const override {
     auto &bin_inst = cast<BinaryOperator>(i);
     const auto opcode = bin_inst.getOpcode();
 

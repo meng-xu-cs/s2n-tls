@@ -95,7 +95,7 @@ struct MutationTestPass : public ModulePass {
       const auto rules = all_mutation_rules();
       auto [rule, i] = find_rule_and_mutation_point(
           rules, m, TargetRule, TargetFunction, std::stol(TargetInstruction));
-      auto mutated = rule.run_mutate(i);
+      auto mutated = rule.run_mutate(i, TargetFunction, TargetInstruction);
 
       json result = json::object();
       if (mutated) {
@@ -231,7 +231,7 @@ protected:
             if (rule->can_mutate(i)) {
               json point = json::object();
               point["second_mutation"] = rule->can_second_mutation();
-	      point["origin_mutate"] = rule->origin_mutate(i);
+	            point["origin_mutate"] = rule->origin_mutate(i);
               point["rule"] = rule->name_;
               point["function"] = func_name.str();
               point["instruction"] = inst_count;

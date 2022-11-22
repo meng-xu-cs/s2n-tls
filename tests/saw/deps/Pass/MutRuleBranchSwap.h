@@ -24,7 +24,7 @@ public:
     return branch_inst.isConditional();
   }
 
-  Optional<json> run_mutate(Instruction &i) const override {
+  Optional<json> run_mutate(Instruction &i,std::string function_count, std::string inst_count) const override {
     auto &branch_inst = cast<BranchInst>(i);
     branch_inst.swapSuccessors();
     return json::object();

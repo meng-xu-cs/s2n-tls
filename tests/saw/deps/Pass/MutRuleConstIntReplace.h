@@ -3,7 +3,7 @@
 
 #include "MutRule.h"
 #include <fstream>
-#include <nlohmann/json.hpp>
+#include "json.hpp"
 #include <vector>
 using json = nlohmann::json;
 
@@ -63,7 +63,7 @@ public:
     }
     return origin_value;
   }
-  Optional<json> run_mutate(Instruction &i) const override {
+  Optional<json> run_mutate(Instruction &i, std::string function_count, std::string inst_count) const override {
     // collect the operand number
     std::vector<size_t> const_positions;
     collectConstantOperands(&i, const_positions);
@@ -91,7 +91,7 @@ public:
     // Iterate through the json object
     for(auto& element: data){
     // Use something that belongs to the instruction to identify it
-      if(element["Instruction"] == i && element["Operand"] == choice) {
+      if(element["function"] =  && element["Instruction"] == i && element["Operand"] == choice) {
         flag = true;
       } 
       // If flag = false which means there is no history record in this file yet, 
