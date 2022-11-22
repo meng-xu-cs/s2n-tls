@@ -2,6 +2,11 @@
 #define LLVM_MUTEST_MUT_RULE_CONST_INT_REPLACE_H
 
 #include "MutRule.h"
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <vector>
+using json = nlohmann::json;
+
 
 namespace mutest {
 
@@ -53,8 +58,8 @@ public:
     for (auto & position: const_positions){
       const auto *operand = cast<ConstantInt>(i.getOperand(position));
       const auto &const_value = operand->getValue();
-        origin_value.append(const_value.toString(10, true));
-	origin_value.append(" ");
+      origin_value.append(const_value.toString(10, true));
+	    origin_value.append(" ");
     }
     return origin_value;
   }
@@ -69,8 +74,34 @@ public:
 
     // pick an action such that after the mutation, the new value is guaranteed
     // to be different
+
+    // Add: Also guarantee the mutated value has not shown up before
+    // Create a file if it doesn't exist
+    std::string constant_file = std::string("constant_history.json");
+
     const APInt &old_val = operand->getValue();
 
+    std::ifstream f(constant_file);
+    json data = json::array();
+    if(!f.fail()){
+      data = json::parse(f);
+    }
+    
+    bool flag = false;
+    // Iterate through the json object
+    for(auto& element: data){
+    // Use something that belongs to the instruction to identify it
+      if(element["Instruction"] == Instruction and element["Operand"] == choice) {
+        flag = true;
+      } 
+      // If flag = false which means there is no history record in this file yet, 
+      // append the original value in history  
+      if (flag == false){
+        std::vector<APInt> v = {*old_val};
+        data.append({"Instruction": Instruction,"Operand": choice, "history": v})
+      }
+    }
+    
     const char *action;
     ConstantInt *new_val;
     while (true) {
@@ -85,6 +116,16 @@ public:
       if (old_val == result) {
         continue;
       }
+      if (flag == true){
+      for(auto& element:data){
+        if(element["Instruction"] == Instruction and element["Operand"] == choice) {
+          if (std::find(element["history"].begin(), element["history"].end(), result) != v.end())
+          {
+            continue;
+          }
+      } 
+      }
+    }
 
       // now create the new constant
       new_val = ConstantInt::get(i.getContext(), result);
@@ -92,7 +133,16 @@ public:
       // done with the mutation
       break;
     }
-
+    // If flag == true, 
+    if (flag == true){
+      for(auto& element:data){
+        if(element["Instruction"] == Instruction and element["Operand"] == choice) {
+          element["history"].push_back(result);
+      } 
+      }
+      std::ofstream o(constant_file);
+      o << std::setw(4) << data << std::endl;
+    }
     // now set the operand to be a new value
     i.setOperand(choice, new_val);
 
