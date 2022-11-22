@@ -238,6 +238,7 @@ protected:
               if (point["function"] ==std::string("s2n_drbg_instantiate") && point["instruction"] == 102){
                   errs() << "instruction here !!" << i << "\n";
               }
+              point["instruction_line"] = std::string(" ");
               if (metadata != 0x0){
                   DILocation *debugLocation = dyn_cast<DILocation>(metadata);
                   const DebugLoc &debugLoc = DebugLoc(debugLocation);
