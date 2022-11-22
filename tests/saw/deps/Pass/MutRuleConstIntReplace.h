@@ -98,7 +98,7 @@ public:
       // append the original value in history  
       if (flag == false){
         std::vector<APInt> v = {*old_val};
-        data.append({"Instruction": Instruction,"Operand": choice, "history": v})
+        data.push_back({"Function": function_count "Instruction": Instruction,"Operand": choice, "history": v})
       }
     }
     
