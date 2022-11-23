@@ -256,6 +256,7 @@ def _fuzzing_thread(tid: int) -> None:
 
             # step 1-1: mutation point never appears in the trace
             # step 1-2: or if mutation point that has appeared but has other mutation rule options
+            # For now force only second_mutation
             valid = True
             for step in old_trace:
                 if not (step.function == mutation_point.function and step.instruction == mutation_point.instruction):
@@ -351,7 +352,11 @@ def _fuzzing_thread(tid: int) -> None:
             GLOBAL_STATE.update_seed_score(base_seed, 2)
 
         # in case we found a surviving mutant
-        if len(new_cov) == 0 or not new_trace[0].second_mutation:
+        # len(new_cov) == 0 means that verification passes.
+        # new_trace[0].second_mutation is monitored here 
+        # in order to prevent the seeds which are unable to do a second mutation become seed
+
+        if len(new_cov) == 0 and not new_trace[0].second_mutation:
             logging.warning("Surviving mutant found")
             Seed.save_survival(new_trace)
             continue

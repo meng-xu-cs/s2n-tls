@@ -2,6 +2,10 @@
 #define LLVM_MUTEST_MUT_RULE_CMP_INT_REPLACE_H
 
 #include "MutRule.h"
+#include <fstream>
+#include "json.hpp"
+#include <vector>
+using json = nlohmann::json;
 
 namespace mutest {
 
@@ -45,6 +49,37 @@ public:
     auto &cmp_inst = cast<ICmpInst>(i);
     const auto predicate = cmp_inst.getPredicate();
 
+    // Add: Also guarantee the mutated predicate won't show up in the future
+    // Create a file if it doesn't exist
+    std::string constant_file = std::string("predicate_history.json");
+
+    std::ifstream f(constant_file);
+    json data = json::array();
+    if(!f.fail()){
+      data = json::parse(f);
+    }
+
+    bool flag = false;
+    // Iterate through the json object
+    for(auto& element: data){
+    // Use something that belongs to the instruction to identify it
+      if(element["Function"] ==function_count  && element["Instruction"] == inst_count && element["Operand"] == choice) {
+        flag = true;
+      } 
+      // If flag = false which means there is no history record in this file yet, 
+      // append the original value in history  
+      std::vector<uint64_t> v;
+      if (flag == false){
+        std::vector<int> v = {repl_signed.at(predicate)};
+        auto object = json::object();
+        object["Function"] = function_count;
+        object["Instruction"] = inst_count;
+        object["Operand"] = choice;
+        object["history"] = v;	
+        data.push_back(object);
+      }
+    }
+        
     // EQ/NE can be either signed or unsigned
     bool is_signed;
     switch (predicate) {
@@ -76,6 +111,15 @@ public:
     // do the replacement
     cmp_inst.setPredicate(repl);
 
+    if (flag == true){
+      for(auto& element:data){
+        if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
+          element["history"].push_back(options);
+      } 
+      }
+      std::ofstream o(constant_file);
+      o << std::setw(4) << data << std::endl;
+    }
     // save the info
     json info = json::object();
     info["repl"] = intoPredicateName(repl);
