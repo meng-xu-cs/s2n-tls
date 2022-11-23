@@ -15,6 +15,7 @@ public:
   static bool const second_mutation = true;
 
 private:
+  // map every predicate with the possible mutant
   std::map<CmpInst::Predicate, std::vector<CmpInst::Predicate>> repl_signed;
   std::map<CmpInst::Predicate, std::vector<CmpInst::Predicate>> repl_unsigned;
 
@@ -46,6 +47,7 @@ public:
    }
 
   Optional<json> run_mutate(Instruction &i,std::string function_count, std::string inst_count) const override {
+    
     auto &cmp_inst = cast<ICmpInst>(i);
     const auto predicate = cmp_inst.getPredicate();
 
@@ -70,7 +72,7 @@ public:
       // append the original value in history  
       std::vector<uint64_t> v;
       if (flag == false){
-        std::vector<int> v = {repl_signed.at(predicate)};
+        std::vector<int> v = {predicate};
         auto object = json::object();
         object["Function"] = function_count;
         object["Instruction"] = inst_count;
@@ -113,7 +115,7 @@ public:
     if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count) {
-          element["history"].push_back(options);
+          element["history"].push_back(repl);
       } 
       }
       std::ofstream o(constant_file);
