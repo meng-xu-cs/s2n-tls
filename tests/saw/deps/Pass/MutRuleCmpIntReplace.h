@@ -63,7 +63,7 @@ public:
     // Iterate through the json object
     for(auto& element: data){
     // Use something that belongs to the instruction to identify it
-      if(element["Function"] ==function_count  && element["Instruction"] == inst_count && element["Operand"] == choice) {
+      if(element["Function"] ==function_count  && element["Instruction"] == inst_count) {
         flag = true;
       } 
       // If flag = false which means there is no history record in this file yet, 
@@ -74,7 +74,6 @@ public:
         auto object = json::object();
         object["Function"] = function_count;
         object["Instruction"] = inst_count;
-        object["Operand"] = choice;
         object["history"] = v;	
         data.push_back(object);
       }
@@ -113,13 +112,14 @@ public:
 
     if (flag == true){
       for(auto& element:data){
-        if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
+        if(element["Instruction"] == inst_count && element["Function"] == function_count) {
           element["history"].push_back(options);
       } 
       }
       std::ofstream o(constant_file);
       o << std::setw(4) << data << std::endl;
     }
+
     // save the info
     json info = json::object();
     info["repl"] = intoPredicateName(repl);
