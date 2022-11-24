@@ -61,7 +61,7 @@ struct MutationTestPass : public ModulePass {
 
       CallGraph cg(m);
       while (!todo_set.empty()) {
-        collect_verification_scope(cg, todo_set, done_set);f
+        collect_verification_scope(cg, todo_set, done_set);
       }
       errs() << "[mutest] "
              << "verification scope contains " << done_set.size() << " function"
