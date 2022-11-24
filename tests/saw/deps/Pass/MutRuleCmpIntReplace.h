@@ -72,7 +72,7 @@ public:
       // append the original value in history  
       std::vector<uint64_t> v;
       if (flag == false){
-        std::vector<int> v = {predicate};
+        std::vector<uint64_t> v = {predicate};
         auto object = json::object();
         object["Function"] = function_count;
         object["Instruction"] = inst_count;
