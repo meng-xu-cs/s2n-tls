@@ -106,7 +106,7 @@ public:
 
     if (flag == true){
       for(auto& element:data){
-        if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
+        if(element["Instruction"] == inst_count && element["Function"] == function_count) {
           element["history"].push_back(repl);
       } 
       }
