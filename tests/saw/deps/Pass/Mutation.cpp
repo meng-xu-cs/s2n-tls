@@ -219,13 +219,6 @@ protected:
         continue;
       }
       
-    std::string constant_file = std::string("constant_history.json");
-    std::ifstream f(constant_file);
-    json data = json::array();
-    if(!f.fail()){
-      data = json::parse(f);
-    }
-      
       // assign each instruction a unique counter value
       size_t inst_count = 0;
       for (const auto &bb : f) {
