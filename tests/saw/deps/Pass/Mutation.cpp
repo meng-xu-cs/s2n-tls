@@ -61,7 +61,7 @@ struct MutationTestPass : public ModulePass {
 
       CallGraph cg(m);
       while (!todo_set.empty()) {
-        collect_verification_scope(cg, todo_set, done_set);
+        collect_verification_scope(cg, todo_set, done_set);f
       }
       errs() << "[mutest] "
              << "verification scope contains " << done_set.size() << " function"
@@ -219,6 +219,13 @@ protected:
         continue;
       }
       
+    std::string constant_file = std::string("constant_history.json");
+    std::ifstream f(constant_file);
+    json data = json::array();
+    if(!f.fail()){
+      data = json::parse(f);
+      errs() << "data here !!" << data << "\n";
+    }
       
       // assign each instruction a unique counter value
       size_t inst_count = 0;
@@ -235,9 +242,6 @@ protected:
               point["rule"] = rule->name_;
               point["function"] = func_name.str();
               point["instruction"] = inst_count;
-              if (point["function"] ==std::string("s2n_drbg_instantiate") && point["instruction"] == 102){
-                  errs() << "instruction here !!" << i << "\n";
-              }
               point["instruction_line"] = std::string(" ");
               if (metadata != 0x0){
                   DILocation *debugLocation = dyn_cast<DILocation>(metadata);
