@@ -77,7 +77,7 @@ public:
 
     // Add: Also guarantee the mutated value has not shown up before
     // Create a file if it doesn't exist
-    std::string constant_file = std::string("constant_history.json");
+    std::string constant_file = std::string("/home/r2ji/s2n-tls/tests/saw/constant_history.json");
 
     const APInt &old_val = operand->getValue();
 
