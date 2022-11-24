@@ -85,7 +85,6 @@ public:
     json data = json::array();
     if(!f.fail()){
       data = json::parse(f);
-      errs() << "data here !!" << data << "\n";
     }
     
     bool flag = false;

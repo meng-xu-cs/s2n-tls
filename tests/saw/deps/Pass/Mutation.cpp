@@ -224,7 +224,6 @@ protected:
     json data = json::array();
     if(!f.fail()){
       data = json::parse(f);
-      errs() << "data here !!" << data << "\n";
     }
       
       // assign each instruction a unique counter value
