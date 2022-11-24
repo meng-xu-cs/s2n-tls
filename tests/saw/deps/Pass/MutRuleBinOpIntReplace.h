@@ -59,6 +59,36 @@ public:
     auto &bin_inst = cast<BinaryOperator>(i);
     const auto opcode = bin_inst.getOpcode();
 
+    // Add: Also guarantee the mutated predicate won't show up in the future
+    // Create a file if it doesn't exist
+    std::string constant_file = std::string("/home/r2ji/s2n-tls/tests/saw/binop_history.json");
+
+    std::ifstream f(constant_file);
+    json data = json::array();
+    if(!f.fail()){
+      data = json::parse(f);
+    }
+
+    bool flag = false;
+    // Iterate through the json object
+    for(auto& element: data){
+    // Use something that belongs to the instruction to identify it
+      if(element["Function"] ==function_count  && element["Instruction"] == inst_count) {
+        flag = true;
+      } 
+      // If flag = false which means there is no history record in this file yet, 
+      // append the original value in history  
+      std::vector<uint64_t> v;
+      if (flag == false){
+        std::vector<uint64_t> v = {opcode};
+        auto object = json::object();
+        object["Function"] = function_count;
+        object["Instruction"] = inst_count;
+        object["history"] = v;	
+        data.push_back(object);
+      }
+    }
+
     // randomize a replacement
     const auto &options = repl_options.at(opcode);
     BinaryOperator::BinaryOps repl;
@@ -74,6 +104,15 @@ public:
     // add a small chance of swapping the operands
     const bool swap = random_range(0, 10) >= 8;
 
+    if (flag == true){
+      for(auto& element:data){
+        if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
+          element["history"].push_back(repl);
+      } 
+      }
+      std::ofstream o(constant_file);
+      o << std::setw(4) << data << std::endl;
+    }
     // do the replacement
     doReplace(bin_inst, swap, repl);
 

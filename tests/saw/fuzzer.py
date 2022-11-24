@@ -353,14 +353,17 @@ def _fuzzing_thread(tid: int) -> None:
 
         # in case we found a surviving mutant
         # len(new_cov) == 0 means that verification passes.
-        # new_trace[0].second_mutation is monitored here 
-        # in order to prevent the seeds which are unable to do a second mutation become seed
-
+        
         if len(new_cov) == 0 :
             logging.warning("Surviving mutant found")
             Seed.save_survival(new_trace)
             continue
 
+        # new_trace[0].second_mutation is monitored here 
+        # in order to prevent the seeds which are unable to do a second mutation become seed
+
+        if not new_trace[0].second_mutation:
+            continue
         # create a new seed and register it to the seed queue
         new_seed = Seed.new_seed(
             new_trace, new_cov, novelty_marks - (len(new_cov) * 5) - len(new_trace)
