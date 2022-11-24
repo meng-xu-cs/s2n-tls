@@ -356,7 +356,7 @@ def _fuzzing_thread(tid: int) -> None:
         # new_trace[0].second_mutation is monitored here 
         # in order to prevent the seeds which are unable to do a second mutation become seed
 
-        if len(new_cov) == 0 and not new_trace[0].second_mutation:
+        if len(new_cov) == 0 :
             logging.warning("Surviving mutant found")
             Seed.save_survival(new_trace)
             continue

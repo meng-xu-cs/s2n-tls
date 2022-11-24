@@ -85,12 +85,14 @@ public:
     json data = json::array();
     if(!f.fail()){
       data = json::parse(f);
+      errs() << "data here !!" << data << "\n";
     }
     
     bool flag = false;
     // Iterate through the json object
     for(auto& element: data){
     // Use something that belongs to the instruction to identify it
+    // Don't forget to allow for the empty one 
       if(element["Function"] ==function_count  && element["Instruction"] == inst_count && element["Operand"] == choice) {
         flag = true;
       } 
