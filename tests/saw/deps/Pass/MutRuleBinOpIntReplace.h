@@ -2,6 +2,10 @@
 #define LLVM_MUTEST_MUT_RULE_BINOP_INT_REPLACE_H
 
 #include "MutRule.h"
+#include <fstream>
+#include "json.hpp"
+#include <vector>
+using json = nlohmann::json;
 
 namespace mutest {
 
