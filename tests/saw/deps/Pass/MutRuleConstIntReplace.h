@@ -145,8 +145,7 @@ public:
       } 
       }
     }
-      std::ofstream o(constant_file);
-      o << std::setw(4) << data << std::endl;
+
     }
     
       // now create the new constant
@@ -157,7 +156,8 @@ public:
       // done with the mutation
       break;
     }
-
+    std::ofstream o(constant_file);
+    o << std::setw(4) << data << std::endl;
     // now set the operand to be a new value
     i.setOperand(choice, new_val);
 
