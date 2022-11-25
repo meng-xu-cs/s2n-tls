@@ -124,10 +124,13 @@ public:
         continue;
       }
 
+      // Filter out flip case
+      if (action != "flip"){
       // If the current result value is in the history vector, continue to regenerate a new one
       if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
+
           if (std::find(element["history"].begin(), element["history"].end(), result.getZExtValue()) != element["history"].end())
           {
             continue;
@@ -135,19 +138,22 @@ public:
       } 
       }
     }
-
-      // now create the new constant
-      new_val = ConstantInt::get(i.getContext(), result);
-    // If flag == true, 
-    if (flag == true){
+      if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
           element["history"].push_back(result.getZExtValue());
       } 
       }
+    }
       std::ofstream o(constant_file);
       o << std::setw(4) << data << std::endl;
     }
+    
+      // now create the new constant
+    new_val = ConstantInt::get(i.getContext(), result);
+    // If flag == true, 
+    
+
       // done with the mutation
       break;
     }
