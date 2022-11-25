@@ -104,7 +104,7 @@ public:
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count) {
 
-          if (std::find(element["history"].begin(), element["history"].end()), repl_index != element["history"].end())
+          if (std::find(element["history"].begin(), element["history"].end(), repl_index) != element["history"].end())
           {
             continue;
           }
