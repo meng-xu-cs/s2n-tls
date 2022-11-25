@@ -109,7 +109,7 @@ public:
         is_signed ? repl_signed.at(predicate) : repl_unsigned.at(predicate);
 
     
-    const auto repl;
+    const auto repl= random_choice(options);
     while(true){
     repl = random_choice(options);
 
