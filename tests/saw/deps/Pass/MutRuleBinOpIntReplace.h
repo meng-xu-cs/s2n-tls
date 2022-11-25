@@ -96,27 +96,35 @@ public:
     // randomize a replacement
     const auto &options = repl_options.at(opcode);
     BinaryOperator::BinaryOps repl;
-    for (unsigned counter = 0; counter < 3; counter++) {
+
+    while(true){
       repl = random_choice(options);
-      // lower the chance of getting a remainder
-      if (repl != BinaryOperator::BinaryOps::SRem &&
-          repl != BinaryOperator::BinaryOps::URem) {
-        break;
-      }
-    }
-
-    // add a small chance of swapping the operands
-    const bool swap = random_range(0, 10) >= 8;
-
-    if (flag == true){
+      if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count) {
+
+          if (std::find(element["history"].begin(), element["history"].end()), repl != element["history"].end())
+          {
+            continue;
+          }
+      } 
+      }
+    } 
+      if (flag == true){
+        for(auto& element:data){
+          if(element["Instruction"] == inst_count && element["Function"] == function_count) {
           element["history"].push_back(repl);
       } 
       }
-      std::ofstream o(constant_file);
-      o << std::setw(4) << data << std::endl;
+    }   
     }
+    // add a small chance of swapping the operands
+    const bool swap = random_range(0, 10) >= 8;
+
+
+
+    std::ofstream o(constant_file);
+    o << std::setw(4) << data << std::endl;
     // do the replacement
     doReplace(bin_inst, swap, repl);
 

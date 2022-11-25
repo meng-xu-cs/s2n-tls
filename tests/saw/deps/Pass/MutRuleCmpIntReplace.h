@@ -53,7 +53,7 @@ public:
 
     // Add: Also guarantee the mutated predicate won't show up in the future
     // Create a file if it doesn't exist
-    std::string constant_file = std::string("predicate_history.json");
+    std::string constant_file = std::string("/home/r2ji/s2n-tls/tests/saw/predicate_history.json");
 
     std::ifstream f(constant_file);
     json data = json::array();
@@ -107,21 +107,38 @@ public:
     // randomize a replacement
     const auto &options =
         is_signed ? repl_signed.at(predicate) : repl_unsigned.at(predicate);
-    const auto repl = random_choice(options);
 
-    // do the replacement
-    cmp_inst.setPredicate(repl);
+    
+    const auto repl;
+    while(true){
+    repl = random_choice(options);
 
+    if (flag == true){
+    for(auto& element:data){
+        if(element["Instruction"] == inst_count && element["Function"] == function_count) {
+
+          if (std::find(element["history"].begin(), element["history"].end(), repl) != element["history"].end())
+          {
+            continue;
+          }
+      } 
+      }
+    }
     if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count) {
           element["history"].push_back(repl);
       } 
       }
-      std::ofstream o(constant_file);
-      o << std::setw(4) << data << std::endl;
     }
 
+    }
+    // do the replacement
+    cmp_inst.setPredicate(repl);
+
+
+    std::ofstream o(constant_file);
+    o << std::setw(4) << data << std::endl;
     // save the info
     json info = json::object();
     info["repl"] = intoPredicateName(repl);

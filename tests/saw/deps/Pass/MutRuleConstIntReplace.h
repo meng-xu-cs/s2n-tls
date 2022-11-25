@@ -127,17 +127,7 @@ public:
       // Filter out flip case
       if (action != "flip"){
       // If the current result value is in the history vector, continue to regenerate a new one
-      if (flag == true){
-      for(auto& element:data){
-        if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
 
-          if (std::find(element["history"].begin(), element["history"].end(), result.getZExtValue()) != element["history"].end())
-          {
-            continue;
-          }
-      } 
-      }
-    }
       if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {
