@@ -65,7 +65,7 @@ public:
 
     // Add: Also guarantee the mutated predicate won't show up in the future
     // Create a file if it doesn't exist
-    std::string constant_file = std::string("/home/r2ji/s2n-tls/tests/saw/binop_history.json");
+    std::string constant_file = std::string("binop_history.json");
 
     std::ifstream f(constant_file);
     json data = json::array();
