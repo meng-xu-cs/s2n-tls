@@ -99,11 +99,12 @@ public:
 
     while(true){
       repl = random_choice(options);
+      uint64_t repl_index = repl;
       if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count) {
 
-          if (std::find(element["history"].begin(), element["history"].end()), repl != element["history"].end())
+          if (std::find(element["history"].begin(), element["history"].end()), repl_index != element["history"].end())
           {
             continue;
           }
@@ -113,7 +114,7 @@ public:
       if (flag == true){
         for(auto& element:data){
           if(element["Instruction"] == inst_count && element["Function"] == function_count) {
-          element["history"].push_back(repl);
+          element["history"].push_back(repl_index);
       } 
       }
     }   
