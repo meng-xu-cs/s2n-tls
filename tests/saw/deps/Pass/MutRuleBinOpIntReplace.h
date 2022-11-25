@@ -80,19 +80,19 @@ public:
       if(element["Function"] ==function_count  && element["Instruction"] == inst_count) {
         flag = true;
       } 
-      // If flag = false which means there is no history record in this file yet, 
-      // append the original value in history  
-      std::vector<uint64_t> v;
-      if (flag == false){
-        std::vector<uint64_t> v = {opcode};
-        auto object = json::object();
-        object["Function"] = function_count;
-        object["Instruction"] = inst_count;
-        object["history"] = v;	
-        data.push_back(object);
-      }
-    }
 
+    }
+    // If flag = false which means there is no history record in this file yet, 
+    // append the original value in history  
+    std::vector<uint64_t> v;
+    if (flag == false){
+      std::vector<uint64_t> v = {opcode};
+      auto object = json::object();
+      object["Function"] = function_count;
+      object["Instruction"] = inst_count;
+      object["history"] = v;	
+      data.push_back(object);
+    }
     // randomize a replacement
     const auto &options = repl_options.at(opcode);
     BinaryOperator::BinaryOps repl;
@@ -124,7 +124,8 @@ public:
 
 
 
-    std::ofstream o(constant_file);
+    std::ofstream o;
+    o.open(constant_file, std::ofstream::out | std::ofstream::trunc);
     o << std::setw(4) << data << std::endl;
     // do the replacement
     doReplace(bin_inst, swap, repl);
