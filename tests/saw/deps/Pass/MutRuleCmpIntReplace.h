@@ -70,18 +70,18 @@ public:
       } 
 
     }
-          // If flag = false which means there is no history record in this file yet, 
-      // append the original value in history  
-      std::vector<uint64_t> v;
-      if (flag == false){
-        std::vector<uint64_t> v = {predicate};
-        auto object = json::object();
-        object["Function"] = function_count;
-        object["Instruction"] = inst_count;
-        object["history"] = v;	
-        data.push_back(object);
-      }
-        
+    // If flag = false which means there is no history record in this file yet, 
+    // append the original value in history  
+    std::vector<uint64_t> v;
+    if (flag == false){
+      std::vector<uint64_t> v = {predicate};
+      auto object = json::object();
+      object["Function"] = function_count;
+      object["Instruction"] = inst_count;
+      object["history"] = v;	
+      data.push_back(object);
+    }
+      
     // EQ/NE can be either signed or unsigned
     bool is_signed;
     switch (predicate) {
