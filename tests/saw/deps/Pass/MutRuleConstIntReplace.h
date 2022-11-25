@@ -95,20 +95,20 @@ public:
       if(element["Function"] ==function_count  && element["Instruction"] == inst_count && element["Operand"] == choice) {
         flag = true;
       } 
-      // If flag = false which means there is no history record in this file yet, 
-      // append the original value in history  
-      std::vector<uint64_t> v;
-      if (flag == false){
-        std::vector<uint64_t> v = {old_val.getZExtValue()};
-        auto object = json::object();
-        object["Function"] = function_count;
-        object["Instruction"] = inst_count;
-        object["Operand"] = choice;
-        object["history"] = v;	
-        data.push_back(object);
-      }
+
     }
-    
+    // If flag = false which means there is no history record in this file yet, 
+    // append the original value in history  
+    std::vector<uint64_t> v;
+    if (flag == false){
+      std::vector<uint64_t> v = {old_val.getZExtValue()};
+      auto object = json::object();
+      object["Function"] = function_count;
+      object["Instruction"] = inst_count;
+      object["Operand"] = choice;
+      object["history"] = v;	
+      data.push_back(object);
+    }
     const char *action;
     ConstantInt *new_val;
     while (true) {
@@ -147,7 +147,6 @@ public:
       break;
     }
     std::ofstream o;
-    
     o.open(constant_file, std::ofstream::out | std::ofstream::trunc);
     o << std::setw(4) << data << std::endl;
     // now set the operand to be a new value
