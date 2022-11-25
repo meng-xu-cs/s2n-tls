@@ -141,7 +141,6 @@ public:
     std::ofstream o;
     o.open(constant_file, std::ofstream::out | std::ofstream::trunc);
     o << std::setw(4) << data << std::endl;
-    o.close();
     // save the info
     json info = json::object();
     info["repl"] = intoPredicateName(repl);
