@@ -146,8 +146,9 @@ public:
       // done with the mutation
       break;
     }
-    errs() << "C"
-    std::ofstream o(constant_file);
+    std::ofstream o;
+    
+    o.open(constant_file, std::ofstream::out | std::ofstream::trunc);
     o << std::setw(4) << data << std::endl;
     // now set the operand to be a new value
     i.setOperand(choice, new_val);
