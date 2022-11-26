@@ -127,7 +127,24 @@ public:
       // Filter out flip case
       if (action != "flip"){
       // If the current result value is in the history vector, continue to regenerate a new one
+      bool rep_flag = false;
+      if (flag == true){
 
+      for(auto& element:data){
+        if(element["Instruction"] == inst_count && element["Function"] == function_count) {
+
+          if (std::find(element["history"].begin(), element["history"].end(), result.getZExtValue()) != element["history"].end())
+          {
+            // In this case, it means that this is a repeated case
+            rep_flag = true;
+          }
+      } 
+      }
+      if(rep_flag == true){
+        continue;
+      }
+      }
+      // flag = true means (instruction, function, operand) has been initialized
       if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count && element["Operand"] == choice) {

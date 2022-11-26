@@ -100,17 +100,22 @@ public:
     while(true){
       repl = random_choice(options);
       uint64_t repl_index = repl;
+
+      bool repl_flag = false;
       if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count) {
 
           if (std::find(element["history"].begin(), element["history"].end(), repl_index) != element["history"].end())
           {
-            continue;
+            repl_flag = true;
           }
       } 
       }
     } 
+    if (repl_flag == true){
+      continue;
+    }
       if (flag == true){
         for(auto& element:data){
           if(element["Instruction"] == inst_count && element["Function"] == function_count) {
@@ -125,6 +130,7 @@ public:
 
 
     std::ofstream o;
+    errs() << "binop about to write to file.." << "\n";
     o.open(constant_file, std::ofstream::out | std::ofstream::trunc);
     o << std::setw(4) << data << std::endl;
     // do the replacement

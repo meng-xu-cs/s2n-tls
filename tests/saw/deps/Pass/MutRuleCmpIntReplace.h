@@ -113,32 +113,41 @@ public:
     auto repl= random_choice(options);
     while(true){
     repl = random_choice(options);
-
+    uint64_t repl_index = repl;
+    bool rep_flag = false;
     if (flag == true){
+
     for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count) {
 
-          if (std::find(element["history"].begin(), element["history"].end(), repl) != element["history"].end())
+          if (std::find(element["history"].begin(), element["history"].end(), repl_flag) != element["history"].end())
           {
-            continue;
+            // In this case, it means that this is a repeated case
+            rep_flag = true;
           }
       } 
       }
+    if(rep_flag == true){
+      continue;
     }
+    }
+    // if it is not rep, register this package to json
+
     if (flag == true){
       for(auto& element:data){
         if(element["Instruction"] == inst_count && element["Function"] == function_count) {
-          element["history"].push_back(repl);
+          element["history"].push_back(repl_index);
       } 
       }
     }
-
+    break;
     }
     // do the replacement
     cmp_inst.setPredicate(repl);
 
 
     std::ofstream o;
+    errs() << "Cmp int about to write to file.." << "\n";
     o.open(constant_file, std::ofstream::out | std::ofstream::trunc);
     o << std::setw(4) << data << std::endl;
     // save the info
