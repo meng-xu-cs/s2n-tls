@@ -123,6 +123,7 @@ public:
       } 
       }
     }   
+    break;
     }
     // add a small chance of swapping the operands
     const bool swap = random_range(0, 10) >= 8;
