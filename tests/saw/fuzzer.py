@@ -196,8 +196,17 @@ class GlobalState(object):
             json.dump(jobj, f, indent=4)
 
         self.lock.release()
+    
 
-
+    def mutation_action(self, mutation_point, path_mutation_result, path_all_llvm_bc) -> None:
+        self.lock.acquire()
+        mutation_pass_mutate(
+            mutation_point,
+            path_mutation_result,
+            path_all_llvm_bc,
+            path_all_llvm_bc,
+        )
+        self.lock.release()
 #
 # Global variable shared across the threads
 #
@@ -281,12 +290,13 @@ def _fuzzing_thread(tid: int) -> None:
             )
             logging.debug("[Thread-{}]   trace replayed".format(tid))
 
-            mutation_pass_mutate(
-                mutation_point,
-                path_mutation_result,
-                path_all_llvm_bc,
-                path_all_llvm_bc,
-            )
+
+            GLOBAL_STATE.mutation_action(
+                mutation_point, 
+                path_mutation_result, 
+                path_all_llvm_bc)
+
+
             with open(path_mutation_result) as f:
                 mutate_result = json.load(f)
 
