@@ -158,6 +158,7 @@ class GlobalState(object):
         self.lock.release()
         return seed, top_score
 
+
     # Update the coverage map, return number of new entries added
     def update_coverage(self, new_cov: List[VerificationError]) -> int:
         self.lock.acquire()
@@ -372,7 +373,10 @@ def _fuzzing_thread(tid: int) -> None:
         # new_trace[0].second_mutation is monitored here 
         # in order to prevent the seeds which are unable to do a second mutation become seed
 
-        if not new_trace[0].second_mutation:
+        # Also filter out the const flip type
+        if new_trace[0].rule == "const-replace" and new_trace[0].package["action"] == "flip":
+            continue
+        if not new_trace[0].second_mutation :
             continue
         # create a new seed and register it to the seed queue
         new_seed = Seed.new_seed(
