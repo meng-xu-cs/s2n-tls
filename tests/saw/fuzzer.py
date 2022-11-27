@@ -13,7 +13,7 @@ from threading import Thread, Lock
 from typing import List, Dict, Tuple
 
 import config
-import signal
+from multiprocessing import Process
 from bitcode import (
     MutationStep,
     mutation_init,
@@ -200,15 +200,22 @@ class GlobalState(object):
         self.lock.release()
     
 
-    def mutation_action(self, mutation_point, path_mutation_result, path_all_llvm_bc) -> None:
+    def mutation_action(self, mutation_point, path_mutation_result, path_all_llvm_bc) -> bool:
         self.lock.acquire()
-        mutation_pass_mutate(
+        return_flag = False
+        p1 = Process(target = mutation_pass_mutate, args = (
             mutation_point,
             path_mutation_result,
             path_all_llvm_bc,
-            path_all_llvm_bc,
-        )
+            path_all_llvm_bc,))
+        p1.start()
+        p1.join(timeout=10)
+        p1.terminate()
         self.lock.release()
+        if p1.exitcode == 0:
+            return_flag = True
+
+        return_flag
 #
 # Global variable shared across the threads
 #
@@ -291,19 +298,14 @@ def _fuzzing_thread(tid: int) -> None:
                 path_all_llvm_bc,
             )
             logging.debug("[Thread-{}]   trace replayed".format(tid))
-            def handle_timeout(signum, frame):
-                raise TimeoutError
-            signal.signal(signal.SIGALRM, handle_timeout)
-            signal.alarm(10)
-            try:
-                GLOBAL_STATE.mutation_action(
-                    mutation_point, 
-                    path_mutation_result, 
-                    path_all_llvm_bc)
-            except TimeoutError:
+
+
+            timeout_flag = GLOBAL_STATE.mutation_action(
+                mutation_point, 
+                path_mutation_result, 
+                path_all_llvm_bc)
+            if timeout_flag == False:
                 break
-            finally:
-                signal.alarm(0)
             with open(path_mutation_result) as f:
                 mutate_result = json.load(f)
 
