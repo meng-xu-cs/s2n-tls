@@ -24,10 +24,6 @@ from bitcode import (
 from prover import VerificationError, verify_all, duplicate_workspace
 from datetime import datetime
 
-def handle_timeout(signum, frame):
-    raise TimeoutError
-signal.signal(signal.SIGALRM, handle_timeout)
-signal.alarm(10)
 # constants
 DEFAULT_SEED_SCORE = 1000
 
@@ -295,7 +291,10 @@ def _fuzzing_thread(tid: int) -> None:
                 path_all_llvm_bc,
             )
             logging.debug("[Thread-{}]   trace replayed".format(tid))
-
+            def handle_timeout(signum, frame):
+                raise TimeoutError
+            signal.signal(signal.SIGALRM, handle_timeout)
+            signal.alarm(10)
             try:
                 GLOBAL_STATE.mutation_action(
                     mutation_point, 
@@ -303,7 +302,8 @@ def _fuzzing_thread(tid: int) -> None:
                     path_all_llvm_bc)
             except TimeoutError:
                 break
-
+            finally:
+                signal.alarm(0)
             with open(path_mutation_result) as f:
                 mutate_result = json.load(f)
 
