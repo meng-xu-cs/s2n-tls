@@ -379,7 +379,8 @@ def _fuzzing_thread(tid: int) -> None:
         # Ideally we should filter out the repeated ones.
         # Currently we will deduct score for the base seed whenever it finds a surviving mutant.
         if len(new_cov) == 0 :
-            GLOBAL_STATE.update_seed_score(base_seed, -100)
+            if base_seed.name != 0:
+                GLOBAL_STATE.update_seed_score(base_seed, -100)
             logging.warning("Surviving mutant found")
             Seed.save_survival(new_trace)
 
