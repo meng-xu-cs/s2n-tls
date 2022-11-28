@@ -277,7 +277,8 @@ def _fuzzing_thread(tid: int) -> None:
             # For now force only second_mutation
             valid = True
             for step in old_trace:
-                if not (step.function == mutation_point.function and step.instruction == mutation_point.instruction):
+                # filter out same instruction different rule
+                if not (step.function == mutation_point.function and step.instruction == mutation_point.instruction and step.rule == mutation_point.rule):
                     valid = False
                     break
                 
@@ -373,9 +374,15 @@ def _fuzzing_thread(tid: int) -> None:
         # in case we found a surviving mutant
         # len(new_cov) == 0 means that verification passes.
         
+        # This problem became more obvious after only do single location multi-trial.
+        # It leads to generating repeat mutant after a period of time.
+        # Ideally we should filter out the repeated ones.
+        # Currently we will deduct score for the base seed whenever it finds a surviving mutant.
         if len(new_cov) == 0 :
+            GLOBAL_STATE.update_seed_score(base_seed, -100)
             logging.warning("Surviving mutant found")
             Seed.save_survival(new_trace)
+
             continue
 
         # new_trace[0].second_mutation is monitored here 
