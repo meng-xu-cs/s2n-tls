@@ -180,7 +180,13 @@ public:
     size_t choice = info["operand"];
     const auto *target = dyn_cast<ConstantInt>(i.getOperand(choice));
     assert(target != nullptr && "Operand is not a constant int");
-
+    errs() << "current block" << i.getParent() << "\n";
+    MDNode *metadata = i.getMetadata("dbg");
+    if (metadata !=0x0)
+    {
+      const DILocation *debugLocation = dyn_cast<DILocation>(metadata);
+      errs() << "current instruction_line" << debugLocation->getLine() << "\n";}
+    
     // now create the new constant
     auto result = run_action(target->getValue(), info["action"]);
     auto new_val = ConstantInt::get(i.getContext(), result);
