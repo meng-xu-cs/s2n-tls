@@ -161,7 +161,13 @@ public:
 
     // retrieve the package
     const auto repl = fromPredicateName(info["repl"]);
-
+    errs() << "current block" << i.getParent() << "\n";
+    MDNode *metadata = i.getMetadata("dbg");
+    if (metadata !=0x0)
+    {
+      const DILocation *debugLocation = dyn_cast<DILocation>(metadata);
+      errs() << "current instruction_line" << debugLocation->getLine() << "\n";}
+    
     // do the replacement
     cmp_inst.setPredicate(repl);
   }
