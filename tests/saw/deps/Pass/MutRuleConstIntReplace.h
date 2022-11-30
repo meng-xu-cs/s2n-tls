@@ -180,7 +180,7 @@ public:
     size_t choice = info["operand"];
     const auto *target = dyn_cast<ConstantInt>(i.getOperand(choice));
     assert(target != nullptr && "Operand is not a constant int");
-    errs() << "current block" << i.getParent() << "\n";
+    errs() << "current block" << *i.getParent() << "\n";
     MDNode *metadata = i.getMetadata("dbg");
     if (metadata !=0x0)
     {

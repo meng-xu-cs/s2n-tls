@@ -150,7 +150,7 @@ public:
     // retrieve the package
     const auto repl = fromOpcodeName(info["repl"]);
     const bool swap = info["swap"];
-    errs() << "current block" << i.getParent() << "\n";
+    errs() << "current block" << *i.getParent() << "\n";
     MDNode *metadata = i.getMetadata("dbg");
     if (metadata !=0x0)
     {

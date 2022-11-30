@@ -161,7 +161,7 @@ public:
 
     // retrieve the package
     const auto repl = fromPredicateName(info["repl"]);
-    errs() << "current block" << i.getParent() << "\n";
+    errs() << "current block" << *i.getParent() << "\n";
     MDNode *metadata = i.getMetadata("dbg");
     if (metadata !=0x0)
     {
