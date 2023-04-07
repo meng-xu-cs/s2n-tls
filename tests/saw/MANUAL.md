@@ -23,7 +23,7 @@ Go into deps dir, make build all the dependencies. (SAW verification is quite fr
 
 In order to match the script with in FAST on parsing the error messages returned from SAW verification, replace executable file saw in saw-nightly built from `make saw-nightly` with the one from:
 
-![Workable saw nightly build, not available on their page anymore](tests/saw/deps/Linux-bins.zip)
+[Workable saw nightly build, not available on their page anymore](./deps/Linux-bins.zip)
 
 # Replay
 
