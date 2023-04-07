@@ -273,12 +273,13 @@ def _fuzzing_thread(tid: int) -> None:
             mutation_point = random.choice(mutation_points)
 
             # step 1-1: mutation point never appears in the trace
-            # step 1-2: or if mutation point that has appeared but has other mutation rule options
-            # For now force only second_mutation
+            # In this branch we disallow non-same-location
+            # I want results preferably different files, so the condition set as such
             valid = True
             for step in old_trace:
                 # filter out same instruction different rule
-                if not (step.function == mutation_point.function and step.instruction == mutation_point.instruction and step.rule == mutation_point.rule):
+            
+                if  (step.function == mutation_point.function and step.instruction == mutation_point.instruction):
                     valid = False
                     break
                 
