@@ -185,12 +185,13 @@ public:
     if (metadata !=0x0)
     {
       const DILocation *debugLocation = dyn_cast<DILocation>(metadata);
-      errs() << "current instruction_line" << debugLocation->getLine() << "\n";}
-    
+      
+    }
     // now create the new constant
     auto result = run_action(target->getValue(), info["action"]);
     auto new_val = ConstantInt::get(i.getContext(), result);
     i.setOperand(choice, new_val);
+    errs() << "mutated block" << *i.getParent() << "\n";
   }
 
 private:

@@ -159,6 +159,7 @@ public:
     
     // do the replacement
     doReplace(bin_inst, swap, repl);
+    
   }
 
 private:
@@ -362,7 +363,7 @@ private:
     default:
       llvm_unreachable("Unknown binary operator");
     }
-
+    errs()<< "the new inst" << *new_inst << "\n";
     assert(new_inst != nullptr && "New instruction not created");
     bin_inst.replaceAllUsesWith(new_inst);
     // NOTE: erasing is important to ensure that the instruction count is intact

@@ -15,17 +15,20 @@ mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 current_dir := $(dir $(mkfile_path))
 project_dir := $(realpath $(current_dir)/..)
 
+help:
+	@echo $(project_dir)
 # variables
-tag = s2n-tls-mutation-testing
+tag = s2n-tls-mutation-testing-add
 
 # targets
 build:
 	@cd $(project_dir) && docker build . -t $(tag)
 
 once:
-	@docker run --rm \
+	@docker run \ 
+	        --rm \
 		-v $(project_dir):/project \
-		-it \
+		-it \ 
 		--entrypoint /bin/bash \
 		$(tag)
 
