@@ -279,7 +279,7 @@ def _fuzzing_thread(tid: int) -> None:
             for step in old_trace:
                 # filter out same instruction different rule
             
-                if  (step.function == mutation_point.function and step.instruction == mutation_point.instruction):
+                if  (step.function == mutation_point.function and step.instruction == mutation_point.instruction and step.rule == mutation_point.rule):
                     valid = False
                     break
                 
